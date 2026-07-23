@@ -96,6 +96,14 @@ button.mini{font-size:.66rem;padding:.32rem .55rem;letter-spacing:.07em}
 .panel.open{display:block}
 .panel h2{font-family:var(--cond);font-weight:700;font-size:.75rem;letter-spacing:.15em;
   text-transform:uppercase;margin:0 0 .6rem}
+.progress{display:none;align-items:center;gap:.7rem;padding:.55rem .6rem;margin-bottom:1rem;
+  border:1.5px solid var(--ink);background:var(--paper-2);
+  font-family:var(--mono);font-size:.74rem;color:var(--ink)}
+.progress.on{display:flex}
+.progress .track{flex:1;height:6px;background:var(--rule);position:relative;min-width:50px}
+.progress .bar{position:absolute;left:0;top:0;bottom:0;background:var(--green);width:0;
+  transition:width .35s cubic-bezier(.2,.8,.3,1)}
+.progress #progressTxt{white-space:nowrap}
 .status{font-family:var(--mono);font-size:.72rem;color:var(--ink-soft);
   padding:.35rem 0 0;min-height:1.2rem}
 .status.bad{color:var(--oxide)}
@@ -206,6 +214,7 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
   <section class="toolbar">
     <button class="primary" id="btnAdd">+ Add company</button>
     <button id="btnRefresh">Refresh prices</button>
+    <button id="btnFetchAll">Fetch all financials</button>
     <button id="btnStarter">Load ASX names</button>
     <button id="btnSettings">Settings</button>
     <button id="btnImport">Import CSV</button>
@@ -227,6 +236,12 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
     <p class="hint">Prices refresh from the proxy. Financials stay put until you pull or paste them — ASX companies only report twice a year, so there is nothing to refresh in between.</p>
   </div>
 
+  <div class="progress" id="progress">
+    <span id="progressTxt">Working…</span>
+    <div class="track"><div class="bar" id="progressBar"></div></div>
+    <button class="ghost mini" id="btnStopFetch">Stop</button>
+  </div>
+
   <div class="ledger" id="ledger"></div>
 
   <details class="notes">
@@ -240,6 +255,11 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
       <li>Copy the <code>/exec</code> URL into Settings above and hit Test connection</li>
     </ol>
     <p>Yahoo has no public API, so the proxy uses their internal endpoints. They change them without warning. If quotes stop coming through, add <code>?fn=clearcache</code> to your exec URL and load it once — a stale crumb is usually the problem.</p>
+
+    <h3>Fetch all financials</h3>
+    <p>Works through the whole list one company at a time, roughly 1.3 seconds apart so Yahoo does not throttle you. Around ninety seconds for seventy names. It saves after every company, so stopping it or losing the page costs you nothing — start it again and it picks up where it left off.</p>
+    <p>It skips banks and REITs, and skips anything already pulled in the last month. Come results season, run it again and it refreshes the lot.</p>
+    <p>Smaller companies often come back empty. Yahoo's coverage thins out below the ASX 200 — those are the ones to paste by hand.</p>
 
     <h3>Pasting from Yahoo</h3>
     <p>Open <code>au.finance.yahoo.com/quote/BHP.AX/financials/</code>, select the table, copy, and paste it into the box inside any company. Same for the balance sheet tab. The parser picks out what it recognises and leaves the rest alone, so you can paste both tables one after the other.</p>
@@ -531,29 +551,103 @@ async function refreshPrices(silent){
   }
 }
 
+var FIN_KEYS = ["revenue","cogs","sga","da","ebit","stDebt","ltDebt",
+                "cash","minority","pref","shares","mcapDirect"];
+
+/* Pulls one company. Returns how many fields landed; throws if the call failed. */
+async function pullOne(c){
+  var res = await proxyGet({ fn:"fundamentals", ticker: yTicker(c) });
+  if (res.error) throw new Error(res.error);
+  var f = res.fields || {}, n = 0;
+  FIN_KEYS.forEach(function(k){
+    if (f[k] != null && isFinite(f[k])){ c[k] = String(Math.round(f[k]*100)/100); n++; }
+  });
+  if (res.currency) c.ccy = res.currency;
+  if (res.priceCurrency) c.priceCcy = res.priceCurrency;
+  if (res.price != null){ c.price = String(res.price); c.updated = Date.now(); }
+  if (!c.co && res.name) c.co = res.name;
+  if (f.mcapDirect != null) c.mcapDirect = "";   // prefer price × shares
+  c.finUpdated = Date.now();
+  return n;
+}
+
 async function fetchFundamentals(c){
   if (!cfg.proxy){ toast("Add your Apps Script URL first"); openPanel(true); return; }
   toast("Fetching " + (c.tkr || "…"));
   try{
-    var res = await proxyGet({ fn:"fundamentals", ticker: yTicker(c) });
-    if (res.error) throw new Error(res.error);
-    var f = res.fields || {}, n = 0;
-    ["revenue","cogs","sga","da","ebit","stDebt","ltDebt","cash","minority","pref","shares","mcapDirect"]
-      .forEach(function(k){
-        if (f[k] != null && isFinite(f[k])){ c[k] = String(Math.round(f[k]*100)/100); n++; }
-      });
-    if (res.currency) c.ccy = res.currency;
-    if (res.priceCurrency) c.priceCcy = res.priceCurrency;
-    if (res.price != null){ c.price = String(res.price); c.updated = Date.now(); }
-    if (!c.co && res.name) c.co = res.name;
-    if (f.mcapDirect != null) c.mcapDirect = "";   // prefer price × shares
-    c.finUpdated = Date.now();
+    var n = await pullOne(c);
     save(); paint();
     toast(n ? n + " fields filled" : "Yahoo had nothing — paste it instead");
   }catch(err){
     toast("Fetch failed — try pasting");
   }
 }
+
+/* ---- batch run: works through the whole list, one at a time, cancellable ---- */
+var stopFetch = false, fetching = false;
+
+function showProgress(on){
+  document.getElementById("progress").classList.toggle("on", !!on);
+}
+function setProgress(done, total, label){
+  document.getElementById("progressBar").style.width =
+    (total ? Math.round(done / total * 100) : 0) + "%";
+  document.getElementById("progressTxt").textContent =
+    done + "/" + total + (label ? " · " + label : "");
+}
+
+async function fetchAllFinancials(){
+  if (fetching) return;
+  if (!cfg.proxy){ toast("Add your Apps Script URL first"); openPanel(true); return; }
+
+  var MONTH = 30 * 24 * 3600 * 1000;
+  var queue = data.filter(function(c){
+    if (!c.tkr || BLOCKED[c.sector]) return false;          // skip banks and REITs
+    return !c.finUpdated || (Date.now() - c.finUpdated) > MONTH;
+  });
+
+  if (!queue.length){
+    toast("Everything already has financials");
+    return;
+  }
+
+  fetching = true; stopFetch = false;
+  var btn = document.getElementById("btnFetchAll");
+  btn.disabled = true; btn.textContent = "Fetching…";
+  showProgress(true);
+  setProgress(0, queue.length, "starting");
+
+  var ok = 0, empty = 0, failed = [], i = 0;
+  for (i = 0; i < queue.length; i++){
+    if (stopFetch) break;
+    var c = queue[i];
+    setProgress(i, queue.length, c.tkr);
+    try{
+      var n = await pullOne(c);
+      if (n) ok++; else empty++;
+    }catch(err){
+      failed.push(c.tkr);
+    }
+    save();                                  // save as we go, nothing lost if it dies
+    if (i % 5 === 4) paint();                // repaint every few so it feels alive
+    if (i < queue.length - 1) await sleep(1300);   // be polite to Yahoo
+  }
+
+  setProgress(i, queue.length, stopFetch ? "stopped" : "done");
+  fetching = false;
+  btn.disabled = false; btn.textContent = "Fetch all financials";
+  paint();
+  setTimeout(function(){ showProgress(false); }, 1400);
+
+  var msg = ok + " filled";
+  if (empty) msg += " · " + empty + " had no data";
+  if (failed.length) msg += " · " + failed.length + " failed";
+  toast(msg);
+  if (failed.length) setStatus("No data for: " + failed.slice(0,12).join(", ") +
+    (failed.length > 12 ? " and " + (failed.length - 12) + " more" : ""), "bad");
+}
+
+function sleep(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
 
 /* ===================== render ===================== */
 function esc(s){ return String(s == null ? "" : s).replace(/[&<>"]/g, function(ch){
@@ -830,6 +924,11 @@ document.getElementById("btnAdd").addEventListener("click", function(){
   if (el) el.focus();
 });
 document.getElementById("btnRefresh").addEventListener("click", function(){ refreshPrices(false); });
+document.getElementById("btnFetchAll").addEventListener("click", function(){ fetchAllFinancials(); });
+document.getElementById("btnStopFetch").addEventListener("click", function(){
+  stopFetch = true;
+  document.getElementById("progressTxt").textContent = "stopping…";
+});
 document.getElementById("btnClear").addEventListener("click", function(){
   if (!data.length) return;
   if (!confirm("Clear all " + data.length + " companies? This cannot be undone.")) return;
