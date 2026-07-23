@@ -33,49 +33,59 @@ body{
 .tnum{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
 
 /* ---------- masthead ---------- */
-.masthead{padding:2.4rem 0 1.1rem;border-bottom:1.5px solid var(--ink)}
+.masthead{padding:2rem 0 .9rem;border-bottom:1.5px solid var(--ink)}
 .eyebrow{font-family:var(--cond);font-weight:600;font-size:.72rem;
   letter-spacing:.16em;text-transform:uppercase;color:var(--ink-soft)}
 .masthead h1{font-family:var(--cond);font-weight:700;
-  font-size:clamp(2.1rem,8.5vw,3.4rem);line-height:.96;letter-spacing:-.015em;
-  margin:.3rem 0 .45rem;text-transform:uppercase}
-.formula{font-family:var(--mono);font-size:.84rem;color:var(--ink-soft)}
+  font-size:clamp(1.9rem,7.5vw,3.1rem);line-height:.96;letter-spacing:-.015em;
+  margin:.25rem 0 .4rem;text-transform:uppercase}
+.formula{font-family:var(--mono);font-size:.8rem;color:var(--ink-soft)}
 .formula b{color:var(--ink);font-weight:500}
 
-/* ---------- scale ---------- */
-.scale-panel{padding:1.5rem 0 .5rem}
-.scale-head{display:flex;justify-content:space-between;align-items:baseline;gap:1rem;margin-bottom:.9rem}
-.scale-head .lbl{font-family:var(--cond);font-weight:600;font-size:.72rem;
-  letter-spacing:.14em;text-transform:uppercase}
-.scale-head .count{font-family:var(--mono);font-size:.75rem;color:var(--ink-soft)}
-.scale{position:relative;height:118px;user-select:none}
-.zone{position:absolute;left:0;top:0;bottom:26px;background:var(--green-wash);
-  border-right:1px dashed rgba(10,107,74,.45)}
-.zone-tag{position:absolute;bottom:30px;left:6px;font-family:var(--cond);
-  font-weight:600;font-size:.64rem;letter-spacing:.12em;text-transform:uppercase;color:var(--green)}
-.swarm{position:absolute;left:0;right:0;top:0;bottom:26px}
-.pin{position:absolute;width:13px;height:13px;border-radius:50%;background:var(--ink);
-  transform:translate(-50%,-50%);border:2px solid var(--paper);cursor:pointer;padding:0;
-  transition:transform .28s cubic-bezier(.2,.8,.3,1),left .28s cubic-bezier(.2,.8,.3,1)}
-.pin.cheap{background:var(--green)}
-.pin.rich{background:var(--oxide)}
-.pin:focus-visible,.pin.on{outline:2px solid var(--ink);outline-offset:2px;
-  transform:translate(-50%,-50%) scale(1.35)}
-.axis{position:absolute;left:0;right:0;bottom:0;height:26px;border-top:1.5px solid var(--ink)}
-.tick{position:absolute;top:0;height:6px;width:1px;background:var(--rule)}
-.tick.major{height:9px;background:var(--ink)}
-.tick-lbl{position:absolute;top:9px;transform:translateX(-50%);
-  font-family:var(--mono);font-size:.65rem;color:var(--ink-soft);white-space:nowrap}
-.median{position:absolute;top:0;bottom:26px;width:1px;background:var(--ink);opacity:.28}
-.median::after{content:attr(data-lbl);position:absolute;top:-2px;left:4px;
-  font-family:var(--cond);font-size:.6rem;letter-spacing:.1em;text-transform:uppercase;
-  color:var(--ink-soft);white-space:nowrap}
-.readout{min-height:2.4rem;margin-top:.7rem;padding:.45rem .6rem;background:var(--paper-2);
+/* ---------- tabs ---------- */
+.tabs{display:flex;gap:0;margin:.9rem 0 0;border:1.5px solid var(--ink)}
+.tabs button{flex:1;font-family:var(--cond);font-weight:700;font-size:.8rem;
+  letter-spacing:.12em;text-transform:uppercase;padding:.6rem;border:0;
+  background:var(--paper-2);color:var(--ink);cursor:pointer}
+.tabs button+button{border-left:1.5px solid var(--ink)}
+.tabs button[aria-selected="true"]{background:var(--ink);color:var(--paper)}
+.tabs button:focus-visible{outline:2px solid var(--green);outline-offset:-3px}
+
+/* ---------- filter chips + search ---------- */
+.chips{display:flex;gap:.35rem;overflow-x:auto;padding:.8rem 0 .5rem;
+  -webkit-overflow-scrolling:touch;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:0 0 auto;font-family:var(--cond);font-weight:600;font-size:.7rem;
+  letter-spacing:.07em;text-transform:uppercase;padding:.34rem .6rem;
+  border:1.5px solid var(--rule);background:var(--paper-2);color:var(--ink);
+  cursor:pointer;display:flex;align-items:center;gap:.35rem;white-space:nowrap}
+.chip .dot{width:9px;height:9px;border-radius:50%;background:var(--ink-soft)}
+.chip[aria-pressed="true"]{border-color:var(--ink);background:var(--ink);color:var(--paper)}
+.chip.tog[aria-pressed="true"]{background:var(--ink-soft);border-color:var(--ink-soft)}
+.searchrow{padding:.1rem 0 .7rem}
+.searchrow input{width:100%;font-family:var(--mono);font-size:.9rem;padding:.5rem .6rem;
+  background:var(--paper-2);color:var(--ink);border:1.5px solid var(--rule);border-radius:0}
+.searchrow input:focus{outline:none;border-color:var(--ink);box-shadow:inset 0 -2px 0 var(--green)}
+
+/* ---------- treemap ---------- */
+.mapwrap{position:relative;border:1.5px solid var(--ink);background:var(--paper-2);
+  overflow:hidden;touch-action:manipulation}
+.tile{position:absolute;overflow:hidden;cursor:pointer;
+  border:1px solid rgba(233,235,229,.9);display:flex;flex-direction:column;
+  justify-content:center;align-items:center;text-align:center;padding:1px}
+.tile .t{font-family:var(--cond);font-weight:700;line-height:1;letter-spacing:.01em}
+.tile .m{font-family:var(--mono);font-weight:500;line-height:1.15}
+.tile.zone{box-shadow:inset 0 0 0 2px var(--ink)}
+.tile.on{box-shadow:inset 0 0 0 3px var(--paper), inset 0 0 0 5px var(--ink);z-index:2}
+.mapfoot{display:flex;justify-content:space-between;gap:.8rem;
+  font-family:var(--mono);font-size:.72rem;color:var(--ink-soft);padding:.5rem .1rem}
+.readout{min-height:2.4rem;margin-top:.2rem;padding:.5rem .6rem;background:var(--paper-2);
   border:1px solid var(--rule);font-family:var(--mono);font-size:.78rem;color:var(--ink-soft)}
 .readout b{color:var(--ink);font-weight:600}
+.readout button{margin-left:.5rem}
 
 /* ---------- controls ---------- */
-.toolbar{display:flex;flex-wrap:wrap;gap:.4rem;padding:1.2rem 0 .9rem;
+.toolbar{display:flex;flex-wrap:wrap;gap:.4rem;padding:1rem 0 .9rem;
   border-top:1px solid var(--rule);margin-top:1rem}
 button{font-family:var(--cond);font-weight:600;font-size:.76rem;letter-spacing:.09em;
   text-transform:uppercase;background:var(--paper-2);color:var(--ink);
@@ -96,6 +106,10 @@ button.mini{font-size:.66rem;padding:.32rem .55rem;letter-spacing:.07em}
 .panel.open{display:block}
 .panel h2{font-family:var(--cond);font-weight:700;font-size:.75rem;letter-spacing:.15em;
   text-transform:uppercase;margin:0 0 .6rem}
+.status{font-family:var(--mono);font-size:.72rem;color:var(--ink-soft);
+  padding:.35rem 0 0;min-height:1.2rem}
+.status.bad{color:var(--oxide)}
+.status.good{color:var(--green)}
 .progress{display:none;align-items:center;gap:.7rem;padding:.55rem .6rem;margin-bottom:1rem;
   border:1.5px solid var(--ink);background:var(--paper-2);
   font-family:var(--mono);font-size:.74rem;color:var(--ink)}
@@ -104,15 +118,17 @@ button.mini{font-size:.66rem;padding:.32rem .55rem;letter-spacing:.07em}
 .progress .bar{position:absolute;left:0;top:0;bottom:0;background:var(--green);width:0;
   transition:width .35s cubic-bezier(.2,.8,.3,1)}
 .progress #progressTxt{white-space:nowrap}
-.status{font-family:var(--mono);font-size:.72rem;color:var(--ink-soft);
-  padding:.35rem 0 0;min-height:1.2rem}
-.status.bad{color:var(--oxide)}
-.status.good{color:var(--green)}
 
 /* ---------- ledger ---------- */
 .ledger{border-top:1.5px solid var(--ink)}
-.row{border-bottom:1px solid var(--rule);position:relative}
-.row.in-zone{box-shadow:inset 3px 0 0 var(--green)}
+.rowwrap{position:relative;overflow:hidden;border-bottom:1px solid var(--rule)}
+.row-del{position:absolute;right:0;top:0;bottom:0;width:86px;background:var(--oxide);
+  color:#fff;border:0;font-family:var(--cond);font-weight:700;font-size:.72rem;
+  letter-spacing:.1em;text-transform:uppercase;display:flex;align-items:center;
+  justify-content:center;cursor:pointer}
+.row{position:relative;background:var(--paper);transition:transform .22s cubic-bezier(.2,.8,.3,1);
+  touch-action:pan-y}
+.rowwrap.in-zone .row{box-shadow:inset 3px 0 0 var(--green)}
 .row-main{display:grid;grid-template-columns:2.1rem 1fr auto;gap:.7rem;align-items:center;
   padding:.85rem .6rem .85rem .75rem;cursor:pointer}
 .row-main:hover{background:var(--paper-2)}
@@ -127,19 +143,21 @@ button.mini{font-size:.66rem;padding:.32rem .55rem;letter-spacing:.07em}
 .mult.cheap{color:var(--green)}
 .mult.rich{color:var(--oxide)}
 .mult.none{color:var(--ink-soft);font-size:1.1rem;font-weight:400}
-.flags{display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.35rem}
+.flags{display:flex;flex-wrap:wrap;gap:.3rem;margin-top:.35rem;align-items:center}
 .flag{font-family:var(--cond);font-weight:600;font-size:.63rem;letter-spacing:.1em;
   text-transform:uppercase;padding:.12rem .38rem;border:1px solid currentColor}
 .flag.warn{color:var(--ochre)}
 .flag.stop{color:var(--oxide)}
 .flag.info{color:var(--ink-soft)}
 .flag.live{color:var(--green)}
-.row.excluded .tkr,.row.excluded .co{opacity:.55}
+.sectag{font-family:var(--cond);font-weight:600;font-size:.63rem;letter-spacing:.08em;
+  text-transform:uppercase;padding:.14rem .4rem;color:#fff;border:0}
+.rowwrap.excluded .tkr,.rowwrap.excluded .co{opacity:.55}
 
 /* ---------- editor ---------- */
 .editor{display:none;padding:.2rem .75rem 1.2rem;background:var(--paper-2);
   border-top:1px dashed var(--rule)}
-.row.open .editor{display:block}
+.rowwrap.open .editor{display:block}
 .fieldset{margin-top:1rem}
 .fs-title{font-family:var(--cond);font-weight:700;font-size:.68rem;letter-spacing:.15em;
   text-transform:uppercase;color:var(--ink);padding-bottom:.35rem;
@@ -184,8 +202,11 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
 .toast{position:fixed;left:50%;bottom:1.2rem;transform:translateX(-50%);background:var(--ink);
   color:var(--paper);padding:.55rem .9rem;font-family:var(--cond);font-size:.78rem;
   letter-spacing:.08em;text-transform:uppercase;opacity:0;pointer-events:none;
-  transition:opacity .2s;z-index:50;max-width:90vw;text-align:center}
-.toast.show{opacity:1}
+  transition:opacity .2s;z-index:50;max-width:92vw;text-align:center;
+  display:flex;gap:.8rem;align-items:center}
+.toast.show{opacity:1;pointer-events:auto}
+.toast button{background:transparent;border:1px solid var(--paper);color:var(--paper);
+  box-shadow:none;font-size:.68rem;padding:.25rem .55rem}
 @media (prefers-reduced-motion:reduce){*{transition:none!important;animation:none!important}}
 </style>
 </head>
@@ -193,22 +214,26 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
 <div class="wrap">
 
   <header class="masthead">
-    <div class="eyebrow">Deep value screen · ASX</div>
+    <div class="eyebrow">Deep value screen · ASX · Australian companies</div>
     <h1>The Acquirer's<br>Multiple</h1>
     <div class="formula"><b>Enterprise value</b> ÷ <b>Operating earnings</b> · lower is cheaper</div>
+    <div class="tabs" role="tablist">
+      <button id="tabMap" role="tab" aria-selected="true">Map</button>
+      <button id="tabList" role="tab" aria-selected="false">List</button>
+    </div>
   </header>
 
-  <section class="scale-panel">
-    <div class="scale-head">
-      <div class="lbl">Where your list sits</div>
-      <div class="count tnum" id="count">0 ranked</div>
-    </div>
-    <div class="scale" id="scale">
-      <div class="zone" id="zone"><span class="zone-tag">Value zone · under 8×</span></div>
-      <div class="swarm" id="swarm"></div>
-      <div class="axis" id="axis"></div>
-    </div>
-    <div class="readout" id="readout">Tap a dot to see the company. Add a few names below to build the picture.</div>
+  <div class="chips" id="chips"></div>
+
+  <section id="viewMap">
+    <div class="mapwrap" id="treemap"></div>
+    <div class="mapfoot"><span id="mapCount"></span><span id="mapMedian"></span></div>
+    <div class="readout" id="readout">Tap a tile for details. Tile size is company size, colour is sector, outlined tiles sit in the value zone under 8×.</div>
+  </section>
+
+  <section id="viewList" style="display:none">
+    <div class="searchrow"><input id="search" type="search" placeholder="Search ticker or name" autocomplete="off"></div>
+    <div class="ledger" id="ledger"></div>
   </section>
 
   <section class="toolbar">
@@ -231,9 +256,10 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
       <button class="primary mini" id="btnSaveProxy">Save</button>
       <button class="mini" id="btnTestProxy">Test connection</button>
       <button class="ghost mini" id="btnAutoToggle">Auto-refresh: off</button>
+      <button class="ghost mini" id="btnPrune">Remove non-Australian names</button>
     </div>
     <div class="status" id="proxyStatus"></div>
-    <p class="hint">Prices refresh from the proxy. Financials stay put until you pull or paste them — ASX companies only report twice a year, so there is nothing to refresh in between.</p>
+    <p class="hint">Prices refresh from the proxy. Financials stay put until you pull or paste them — ASX companies only report twice a year.</p>
   </div>
 
   <div class="progress" id="progress">
@@ -242,10 +268,11 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
     <button class="ghost mini" id="btnStopFetch">Stop</button>
   </div>
 
-  <div class="ledger" id="ledger"></div>
-
   <details class="notes">
     <summary>Method, setup &amp; the ASX catches</summary>
+
+    <h3>Map and list</h3>
+    <p>The map shows every rankable company: tile size is market cap, colour is sector, and tiles outlined in ink sit inside the value zone under 8×. Tap a tile for its numbers, then open it in the list to edit. The list is the full ranking. Swipe a row left to delete it — an undo appears for a few seconds. Sector chips filter both views, and the Banks &amp; REITs chip shows or hides the financial names, which never rank either way.</p>
 
     <h3>Setting up auto-update</h3>
     <ol>
@@ -257,16 +284,13 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
     <p>Yahoo has no public API, so the proxy uses their internal endpoints. They change them without warning. If quotes stop coming through, add <code>?fn=clearcache</code> to your exec URL and load it once — a stale crumb is usually the problem.</p>
 
     <h3>Fetch all financials</h3>
-    <p>Works through the whole list one company at a time, roughly 1.3 seconds apart so Yahoo does not throttle you. Around ninety seconds for seventy names. It saves after every company, so stopping it or losing the page costs you nothing — start it again and it picks up where it left off.</p>
-    <p>It skips banks and REITs, and skips anything already pulled in the last month. Come results season, run it again and it refreshes the lot.</p>
-    <p>Smaller companies often come back empty. Yahoo's coverage thins out below the ASX 200 — those are the ones to paste by hand.</p>
+    <p>Works through the whole list one company at a time, roughly 1.3 seconds apart so Yahoo does not throttle you. It saves after every company, so stopping it or losing the page costs you nothing — start it again and it picks up where it left off. It skips banks and REITs, and skips anything already pulled in the last month. Come results season, run it again and it refreshes the lot. Smaller companies often come back empty — Yahoo's coverage thins out down the list. Those are the ones to paste by hand.</p>
 
     <h3>Pasting from Yahoo</h3>
-    <p>Open <code>au.finance.yahoo.com/quote/BHP.AX/financials/</code>, select the table, copy, and paste it into the box inside any company. Same for the balance sheet tab. The parser picks out what it recognises and leaves the rest alone, so you can paste both tables one after the other.</p>
-    <p>Yahoo prints everything in thousands — that is handled. What is not handled automatically is which impairments were genuinely one-off, so still read the annual report before you trust a number.</p>
+    <p>Open <code>au.finance.yahoo.com/quote/BHP.AX/financials/</code>, select the table, copy, and paste it into the box inside any company. Same for the balance sheet tab. The parser picks out what it recognises and leaves the rest alone. Yahoo prints everything in thousands — that is handled. What is not handled is which impairments were genuinely one-off, so still read the annual report before you trust a number.</p>
 
     <h3>The currency trap</h3>
-    <p>BHP, Rio, James Hardie, Amcor and ResMed report in USD while trading in AUD. Mixing a USD earnings figure with an AUD market cap produces a multiple that means nothing. The screener flags a mismatch when it can detect one — take it seriously.</p>
+    <p>A handful of Australian companies — BHP, Rio, South32, Ansell, Woodside among them — report in USD while trading in AUD. Mixing a USD earnings figure with an AUD market cap produces a multiple that means nothing. The screener flags the mismatch when it can detect one — take it seriously.</p>
 
     <h3>The three line items</h3>
     <ul>
@@ -291,9 +315,8 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
 
     <h3>Where this breaks on the ASX</h3>
     <ul>
-      <li><b>Banks, insurers and REITs are excluded.</b> Debt is their raw material, so enterprise value means nothing. That knocks out a big slab of the ASX 200.</li>
+      <li><b>Banks, insurers and REITs never rank.</b> Debt is their raw material, so enterprise value means nothing. The chip just controls whether you see them.</li>
       <li><b>Miners and energy get a cyclical flag.</b> A 4× multiple at the top of an iron ore or coal cycle is a peak-earnings trap, not a bargain. Check it against average earnings over a full cycle.</li>
-      <li><b>Stapled securities and infrastructure trusts</b> carry structurally high gearing. The leverage flag catches them; treat it as a prompt to read the debt note.</li>
       <li><b>Half-year reporting.</b> Most ASX companies report twice a year. For a trailing twelve months figure, add the latest half to the prior full year and subtract the matching half.</li>
       <li><b>Franking credits</b> sit outside this calculation entirely.</li>
     </ul>
@@ -307,7 +330,7 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
   </details>
 
 </div>
-<div class="toast" id="toast"></div>
+<div class="toast" id="toast"><span id="toastTxt"></span></div>
 
 <script>
 (function(){
@@ -339,13 +362,36 @@ var store = {
 var SECTORS = ["Materials","Energy","Industrials","Consumer Discretionary","Consumer Staples",
                "Health Care","Communication Services","Information Technology","Utilities",
                "Financials","Real Estate (REIT)"];
+var SHORTSEC = {"Materials":"Materials","Energy":"Energy","Industrials":"Industrials",
+  "Consumer Discretionary":"Cons Disc","Consumer Staples":"Staples","Health Care":"Health",
+  "Communication Services":"Comms","Information Technology":"Tech","Utilities":"Utilities",
+  "Financials":"Financials","Real Estate (REIT)":"REITs"};
+var SECCOL = {
+  "Materials":"#96502E",
+  "Energy":"#3D3A35",
+  "Industrials":"#6B7A85",
+  "Consumer Discretionary":"#C08A2D",
+  "Consumer Staples":"#5E8C4A",
+  "Health Care":"#2E7D74",
+  "Communication Services":"#7B5EA7",
+  "Information Technology":"#3E6FB0",
+  "Utilities":"#8A8F3C",
+  "Financials":"#9AA0A6",
+  "Real Estate (REIT)":"#B4A48E"
+};
+function secText(sec){
+  var hex = SECCOL[sec] || "#666";
+  var r = parseInt(hex.slice(1,3),16), g = parseInt(hex.slice(3,5),16), b = parseInt(hex.slice(5,7),16);
+  return (0.299*r + 0.587*g + 0.114*b) > 150 ? "#131C19" : "#F2F3EF";
+}
 var BLOCKED = {"Financials":"Banks and insurers — EV is meaningless",
                "Real Estate (REIT)":"REIT — debt is the business model"};
 var CYCLICAL = {"Materials":1,"Energy":1};
-var ZONE_MAX = 8, SCALE_MAX = 20;
+var ZONE_MAX = 8;
 
-var data = [], cfg = { proxy:"", auto:false };
+var data = [], cfg = { proxy:"", auto:false, tab:"map", sector:"", showEx:false };
 var openId = null, pinnedId = null, pasteOpen = null, busy = false;
+var lastDeleted = null, undoTimer = null;
 
 function uid(){ return "c" + Math.random().toString(36).slice(2,9); }
 function num(v){ var n = parseFloat(v); return isFinite(n) ? n : 0; }
@@ -381,19 +427,19 @@ function ccyClash(c){
 function assess(c){
   var out = { excluded:false, reason:"", flags:[] };
   if (BLOCKED[c.sector]){ out.excluded = true; out.reason = BLOCKED[c.sector];
-    out.flags.push({t:"Excluded", k:"stop"}); return out; }
+    out.flags.push({t:"Never ranks", k:"stop"}); return out; }
   if (!hasFigures(c)){ out.excluded = true; out.reason = "No figures entered yet";
     out.flags.push({t:"Needs data", k:"info"}); return out; }
   var oe = opEarn(c);
   if (oe <= 0){ out.excluded = true; out.reason = "Operating earnings are zero or negative";
     out.flags.push({t:"No earnings", k:"stop"}); return out; }
   if (ccyClash(c)) out.flags.push({t:"Currency mismatch " + c.ccy + "/" + c.priceCcy, k:"stop"});
-  if (CYCLICAL[c.sector]) out.flags.push({t:"Cyclical earnings", k:"warn"});
+  if (CYCLICAL[c.sector]) out.flags.push({t:"Cyclical", k:"warn"});
   var nd = netDebt(c);
-  if (nd / oe > 4) out.flags.push({t:"Net debt " + (nd/oe).toFixed(1) + "× earnings", k:"warn"});
+  if (nd / oe > 4) out.flags.push({t:"Net debt " + (nd/oe).toFixed(1) + "×", k:"warn"});
   if (mcap(c) > 0 && mcap(c) < 50) out.flags.push({t:"Micro cap", k:"warn"});
   if (nd < 0) out.flags.push({t:"Net cash", k:"info"});
-  if (c.updated && Date.now() - c.updated < 26*3600*1000) out.flags.push({t:"Live price", k:"live"});
+  if (c.updated && Date.now() - c.updated < 26*3600*1000) out.flags.push({t:"Live", k:"live"});
   return out;
 }
 
@@ -410,6 +456,27 @@ function ago(ts){
   if (s < 5400) return Math.round(s/60) + "m ago";
   if (s < 172800) return Math.round(s/3600) + "h ago";
   return Math.round(s/86400) + "d ago";
+}
+function esc(s){ return String(s == null ? "" : s).replace(/[&<>"]/g, function(ch){
+  return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[ch]; }); }
+
+/* ===================== filters ===================== */
+function visible(c){
+  if (BLOCKED[c.sector] && !cfg.showEx) return false;
+  if (cfg.sector && c.sector !== cfg.sector) return false;
+  return true;
+}
+function searched(c){
+  var q = (document.getElementById("search").value || "").trim().toLowerCase();
+  if (!q) return true;
+  return (c.tkr || "").toLowerCase().indexOf(q) >= 0 ||
+         (c.co || "").toLowerCase().indexOf(q) >= 0;
+}
+function scoreAll(){
+  return data.map(function(c){
+    var a = assess(c);
+    return { c:c, a:a, m: a.excluded ? null : multiple(c) };
+  });
 }
 
 /* ===================== Yahoo paste parser ===================== */
@@ -466,12 +533,9 @@ function parseYahoo(text){
       if (out.fields[key] !== undefined) continue;
       var matched = pats.some(function(p){ return p.test(line); });
       if (!matched) continue;
-
-      // strip the label text, then take the first number on this line
       var tail = line;
       pats.forEach(function(p){ tail = tail.replace(p, " "); });
       var toks = tail.match(NUMTOK);
-      // nothing on this line? look at the next few (mobile copy splits cells)
       if (!toks || !toks.length){
         for (var k = i+1; k < Math.min(i+4, lines.length); k++){
           var t2 = lines[k].match(NUMTOK);
@@ -504,7 +568,6 @@ function yTicker(c){
   if (!t) return "";
   return /\./.test(t) ? t : t + ".AX";
 }
-
 function setStatus(msg, kind){
   var el = document.getElementById("proxyStatus");
   el.textContent = msg;
@@ -531,7 +594,7 @@ async function refreshPrices(silent){
         var q = res[yTicker(c)];
         if (!q || q.error || q.price == null) return;
         c.price = String(q.price);
-        c.mcapDirect = "";                 // let price × shares drive it again
+        c.mcapDirect = "";
         c.priceCcy = q.currency || "";
         if (!c.co && q.name) c.co = q.name;
         c.updated = Date.now();
@@ -554,7 +617,6 @@ async function refreshPrices(silent){
 var FIN_KEYS = ["revenue","cogs","sga","da","ebit","stDebt","ltDebt",
                 "cash","minority","pref","shares","mcapDirect"];
 
-/* Pulls one company. Returns how many fields landed; throws if the call failed. */
 async function pullOne(c){
   var res = await proxyGet({ fn:"fundamentals", ticker: yTicker(c) });
   if (res.error) throw new Error(res.error);
@@ -566,7 +628,7 @@ async function pullOne(c){
   if (res.priceCurrency) c.priceCcy = res.priceCurrency;
   if (res.price != null){ c.price = String(res.price); c.updated = Date.now(); }
   if (!c.co && res.name) c.co = res.name;
-  if (f.mcapDirect != null) c.mcapDirect = "";   // prefer price × shares
+  if (f.mcapDirect != null) c.mcapDirect = "";
   c.finUpdated = Date.now();
   return n;
 }
@@ -583,9 +645,7 @@ async function fetchFundamentals(c){
   }
 }
 
-/* ---- batch run: works through the whole list, one at a time, cancellable ---- */
 var stopFetch = false, fetching = false;
-
 function showProgress(on){
   document.getElementById("progress").classList.toggle("on", !!on);
 }
@@ -595,21 +655,17 @@ function setProgress(done, total, label){
   document.getElementById("progressTxt").textContent =
     done + "/" + total + (label ? " · " + label : "");
 }
+function sleep(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
 
 async function fetchAllFinancials(){
   if (fetching) return;
   if (!cfg.proxy){ toast("Add your Apps Script URL first"); openPanel(true); return; }
-
   var MONTH = 30 * 24 * 3600 * 1000;
   var queue = data.filter(function(c){
-    if (!c.tkr || BLOCKED[c.sector]) return false;          // skip banks and REITs
+    if (!c.tkr || BLOCKED[c.sector]) return false;
     return !c.finUpdated || (Date.now() - c.finUpdated) > MONTH;
   });
-
-  if (!queue.length){
-    toast("Everything already has financials");
-    return;
-  }
+  if (!queue.length){ toast("Everything already has financials"); return; }
 
   fetching = true; stopFetch = false;
   var btn = document.getElementById("btnFetchAll");
@@ -628,9 +684,9 @@ async function fetchAllFinancials(){
     }catch(err){
       failed.push(c.tkr);
     }
-    save();                                  // save as we go, nothing lost if it dies
-    if (i % 5 === 4) paint();                // repaint every few so it feels alive
-    if (i < queue.length - 1) await sleep(1300);   // be polite to Yahoo
+    save();
+    if (i % 5 === 4) paint();
+    if (i < queue.length - 1) await sleep(1300);
   }
 
   setProgress(i, queue.length, stopFetch ? "stopped" : "done");
@@ -647,82 +703,150 @@ async function fetchAllFinancials(){
     (failed.length > 12 ? " and " + (failed.length - 12) + " more" : ""), "bad");
 }
 
-function sleep(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
-
-/* ===================== render ===================== */
-function esc(s){ return String(s == null ? "" : s).replace(/[&<>"]/g, function(ch){
-  return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[ch]; }); }
-
-function buildAxis(){
-  var ax = document.getElementById("axis");
-  ax.innerHTML = "";
-  for (var i = 0; i <= SCALE_MAX; i += 2){
-    var pct = (i / SCALE_MAX) * 100;
-    var t = document.createElement("div");
-    t.className = "tick" + (i % 4 === 0 ? " major" : "");
-    t.style.left = pct + "%";
-    ax.appendChild(t);
-    if (i % 4 === 0){
-      var l = document.createElement("div");
-      l.className = "tick-lbl"; l.style.left = pct + "%";
-      l.textContent = i === SCALE_MAX ? i + "×+" : i + "×";
-      ax.appendChild(l);
-    }
-  }
-  document.getElementById("zone").style.width = (ZONE_MAX / SCALE_MAX * 100) + "%";
-}
-
-function renderScale(ranked){
-  var swarm = document.getElementById("swarm");
-  swarm.innerHTML = "";
-  document.getElementById("count").textContent = ranked.length + " ranked";
-  var old = document.querySelector(".median"); if (old) old.remove();
-  if (!ranked.length) return;
-
-  var lanes = [], H = 88, LANE = 17;
-  ranked.forEach(function(r){
-    var pct = Math.min(r.m / SCALE_MAX, 1) * 100, lane = 0;
-    while (lanes[lane] !== undefined && Math.abs(lanes[lane] - pct) < 3.2) lane++;
-    lanes[lane] = pct;
-    var p = document.createElement("button");
-    p.className = "pin " + (r.m < ZONE_MAX ? "cheap" : (r.m > 14 ? "rich" : ""));
-    p.style.left = pct + "%";
-    p.style.top = (H - 14 - (lane % 5) * LANE) + "px";
-    p.setAttribute("aria-label", r.c.tkr + " at " + fmtX(r.m));
-    p.dataset.id = r.c.id;
-    p.addEventListener("click", function(){ pinnedId = r.c.id; paint(); });
-    swarm.appendChild(p);
+/* ===================== chips + tabs ===================== */
+function renderChips(){
+  var host = document.getElementById("chips");
+  var counts = {};
+  data.forEach(function(c){ counts[c.sector] = (counts[c.sector] || 0) + 1; });
+  var html = '<button class="chip" data-sec="" aria-pressed="' + (!cfg.sector) + '">All</button>';
+  SECTORS.forEach(function(s){
+    if (!counts[s]) return;
+    if (BLOCKED[s] && !cfg.showEx) return;
+    html += '<button class="chip" data-sec="' + esc(s) + '" aria-pressed="' + (cfg.sector === s) + '">' +
+      '<span class="dot" style="background:' + SECCOL[s] + '"></span>' + esc(SHORTSEC[s]) + '</button>';
   });
+  html += '<button class="chip tog" id="chipEx" aria-pressed="' + cfg.showEx + '">Banks &amp; REITs</button>';
+  host.innerHTML = html;
+}
+document.getElementById("chips").addEventListener("click", function(e){
+  var b = e.target.closest("button"); if (!b) return;
+  if (b.id === "chipEx"){
+    cfg.showEx = !cfg.showEx;
+    if (!cfg.showEx && BLOCKED[cfg.sector]) cfg.sector = "";
+    saveCfg(); paint(); return;
+  }
+  cfg.sector = (b.dataset.sec === cfg.sector) ? "" : b.dataset.sec;
+  saveCfg(); paint();
+});
 
-  var mid = ranked[Math.floor((ranked.length - 1) / 2)].m;
-  var md = document.createElement("div");
-  md.className = "median";
-  md.style.left = Math.min(mid / SCALE_MAX, 1) * 100 + "%";
-  md.setAttribute("data-lbl", "median " + fmtX(mid));
-  document.getElementById("scale").appendChild(md);
+function setTab(t){
+  cfg.tab = t; saveCfg();
+  document.getElementById("tabMap").setAttribute("aria-selected", t === "map");
+  document.getElementById("tabList").setAttribute("aria-selected", t === "list");
+  document.getElementById("viewMap").style.display = t === "map" ? "" : "none";
+  document.getElementById("viewList").style.display = t === "list" ? "" : "none";
+  paint();
+}
+document.getElementById("tabMap").addEventListener("click", function(){ setTab("map"); });
+document.getElementById("tabList").addEventListener("click", function(){ setTab("list"); });
+
+/* ===================== treemap ===================== */
+function squarify(nodes, W, H){
+  var total = 0;
+  nodes.forEach(function(n){ total += n.v; });
+  if (!total) return [];
+  nodes.forEach(function(n){ n.a = n.v / total * W * H; });
+  var rects = [], x = 0, y = 0, w = W, h = H, row = [], i = 0;
+
+  function sum(r){ var s = 0; r.forEach(function(n){ s += n.a; }); return s; }
+  function worst(r, len){
+    var s = sum(r), mx = 0, mn = Infinity;
+    r.forEach(function(n){ if (n.a > mx) mx = n.a; if (n.a < mn) mn = n.a; });
+    return Math.max(len*len*mx/(s*s), s*s/(len*len*mn));
+  }
+  function layoutRow(r){
+    var s = sum(r), horiz = w >= h, len = horiz ? h : w, thick = s / len, off = 0;
+    r.forEach(function(n){
+      var l = n.a / thick;
+      if (horiz){ n.x = x; n.y = y + off; n.w = thick; n.h = l; }
+      else      { n.x = x + off; n.y = y; n.w = l; n.h = thick; }
+      rects.push(n); off += l;
+    });
+    if (horiz){ x += thick; w -= thick; } else { y += thick; h -= thick; }
+  }
+  while (i < nodes.length){
+    var n = nodes[i], len = Math.min(w, h);
+    if (!row.length || worst(row.concat([n]), len) <= worst(row, len)){ row.push(n); i++; }
+    else { layoutRow(row); row = []; }
+  }
+  if (row.length) layoutRow(row);
+  return rects;
 }
 
-function renderReadout(ranked){
+function renderMap(scored){
+  var host = document.getElementById("treemap");
+  var pool = scored.filter(function(s){
+    return s.m != null && visible(s.c) && mcap(s.c) > 0;
+  }).sort(function(a,b){ return mcap(b.c) - mcap(a.c); });
+
+  var W = host.clientWidth || 340;
+  var H = Math.max(340, Math.min(600, Math.round(pool.length * 3.2)));
+  host.style.height = H + "px";
+
+  if (!pool.length){
+    host.innerHTML = '<div style="position:absolute;inset:0;display:flex;align-items:center;' +
+      'justify-content:center;padding:1.5rem;text-align:center;font-family:var(--mono);' +
+      'font-size:.78rem;color:var(--ink-soft)">Nothing rankable to map yet — pull some financials first.</div>';
+    document.getElementById("mapCount").textContent = "";
+    document.getElementById("mapMedian").textContent = "";
+    return;
+  }
+
+  var nodes = pool.map(function(s){ return { v: mcap(s.c), s: s }; });
+  var rects = squarify(nodes, W, H);
+  var html = "";
+  rects.forEach(function(r){
+    var s = r.s, col = SECCOL[s.c.sector] || "#666", txt = secText(s.c.sector);
+    var showT = r.w > 34 && r.h > 22;
+    var showM = r.w > 44 && r.h > 36;
+    var fsT = Math.max(9, Math.min(15, Math.floor(Math.min(r.w/3.4, r.h/2.6))));
+    html += '<div class="tile' + (s.m < ZONE_MAX ? ' zone' : '') +
+      (s.c.id === pinnedId ? ' on' : '') + '" data-id="' + s.c.id + '" style="left:' +
+      r.x.toFixed(1) + 'px;top:' + r.y.toFixed(1) + 'px;width:' + Math.max(0, r.w - 0.5).toFixed(1) +
+      'px;height:' + Math.max(0, r.h - 0.5).toFixed(1) + 'px;background:' + col + ';color:' + txt + '">' +
+      (showT ? '<span class="t" style="font-size:' + fsT + 'px">' + esc(s.c.tkr) + '</span>' : '') +
+      (showM ? '<span class="m" style="font-size:' + Math.max(8, fsT - 3) + 'px">' + fmtX(s.m) + '</span>' : '') +
+      '</div>';
+  });
+  host.innerHTML = html;
+
+  var ranked = pool.slice().sort(function(a,b){ return a.m - b.m; });
+  var inZone = ranked.filter(function(s){ return s.m < ZONE_MAX; }).length;
+  var mid = ranked[Math.floor((ranked.length - 1) / 2)].m;
+  document.getElementById("mapCount").textContent = ranked.length + " mapped · " + inZone + " in value zone";
+  document.getElementById("mapMedian").textContent = "median " + fmtX(mid);
+}
+
+document.getElementById("treemap").addEventListener("click", function(e){
+  var t = e.target.closest(".tile"); if (!t) return;
+  pinnedId = t.dataset.id;
+  paint();
+});
+
+function renderReadout(scored){
   var ro = document.getElementById("readout");
-  var hit = ranked.filter(function(r){ return r.c.id === pinnedId; })[0];
+  var hit = null;
+  scored.forEach(function(s){ if (s.c.id === pinnedId && s.m != null) hit = s; });
   if (hit){
     var c = hit.c;
-    document.querySelectorAll(".pin").forEach(function(p){
-      p.classList.toggle("on", p.dataset.id === c.id); });
-    ro.innerHTML = "<b>" + esc(c.tkr || "—") + "</b> · " + esc(c.sector) +
-      " — EV " + fmtM(ev(c)) + " ÷ earnings " + fmtM(opEarn(c)) +
-      " = <b>" + fmtX(hit.m) + "</b>" + (c.updated ? " · priced " + ago(c.updated) : "");
+    ro.innerHTML = "<b>" + esc(c.tkr) + "</b> " + esc(c.co) + " · " + esc(SHORTSEC[c.sector]) +
+      " · " + fmtM(mcap(c)) + "<br>EV " + fmtM(ev(c)) + " ÷ OE " + fmtM(opEarn(c)) +
+      " = <b>" + fmtX(hit.m) + "</b>" +
+      '<button class="mini" id="btnOpenPinned">Open</button>';
+    var b = document.getElementById("btnOpenPinned");
+    if (b) b.addEventListener("click", function(){
+      openId = c.id; setTab("list");
+      setTimeout(function(){
+        var el = document.querySelector('.rowwrap[data-id="' + c.id + '"]');
+        if (el) el.scrollIntoView({ behavior:"smooth", block:"start" });
+      }, 60);
+    });
     return;
   }
-  if (!ranked.length){
-    ro.textContent = "Tap a dot to see the company. Add a few names below to build the picture.";
-    return;
-  }
-  var inZone = ranked.filter(function(r){ return r.m < ZONE_MAX; }).length;
-  ro.innerHTML = "Cheapest is <b>" + esc(ranked[0].c.tkr) + "</b> at <b>" + fmtX(ranked[0].m) +
-    "</b> · " + inZone + " of " + ranked.length + " inside the value zone.";
+  ro.textContent = "Tap a tile for details. Tile size is company size, colour is sector, outlined tiles sit in the value zone under 8×.";
 }
 
+/* ===================== list ===================== */
 function f(cid, key, label, val, ph){
   return '<label><span class="lab">' + label + '</span>' +
     '<input inputmode="decimal" data-id="' + cid + '" data-k="' + key + '" ' +
@@ -732,10 +856,8 @@ function f(cid, key, label, val, ph){
 function editorHTML(c){
   var td = c.mode === "topdown";
   return '<div class="editor">' +
-
   (ccyClash(c) ? '<div class="alert"><b>Currency mismatch.</b> Financials are in ' + esc(c.ccy) +
     ' but the price is in ' + esc(c.priceCcy) + '. Convert one side before you believe the multiple.</div>' : '') +
-
   '<div class="fieldset"><div class="fs-title"><span>Identity</span>' +
     '<span style="font-family:var(--mono);font-weight:400;letter-spacing:0;text-transform:none">' +
     (c.finUpdated ? "financials " + ago(c.finUpdated) : "") + '</span></div><div class="grid">' +
@@ -753,7 +875,6 @@ function editorHTML(c){
     '<textarea id="pt_' + c.id + '" placeholder="Copy the whole financials or balance sheet table from Yahoo Finance and paste it here"></textarea>' +
     '<div class="ed-actions"><button class="primary mini" data-act="parse" data-id="' + c.id + '">Read it</button>' +
     '<button class="ghost mini" data-act="paste" data-id="' + c.id + '">Close</button></div>' +
-    '<p class="hint">Works on the income statement and balance sheet tabs. Paste one, read it, then paste the other.</p>' +
   '</div></div>' +
 
   '<div class="fieldset"><div class="fs-title"><span>Enterprise value · $m</span>' +
@@ -802,70 +923,164 @@ function calcHTML(c){
 function rowHTML(c, rank, a, m){
   var multCls = m == null ? "none" : (m < ZONE_MAX ? "cheap" : (m > 14 ? "rich" : ""));
   var multTxt = m == null ? "—" : fmtX(m);
-  var meta = m == null ? esc(a.reason) : "EV " + fmtM(ev(c)) + "  ÷  OE " + fmtM(opEarn(c));
-  var flags = a.flags.map(function(fl){
-    return '<span class="flag ' + fl.k + '">' + esc(fl.t) + '</span>'; }).join("");
-  return '<div class="row-main" data-act="toggle">' +
+  var mc = mcap(c);
+  var meta = (mc > 0 ? fmtM(mc) + "  ·  " : "") +
+    (m == null ? esc(a.reason) : "EV " + fmtM(ev(c)) + " ÷ OE " + fmtM(opEarn(c)));
+  var flags = '<span class="sectag" style="background:' + (SECCOL[c.sector] || "#666") +
+    ';color:' + secText(c.sector) + '">' + esc(SHORTSEC[c.sector]) + '</span>' +
+    a.flags.map(function(fl){
+      return '<span class="flag ' + fl.k + '">' + esc(fl.t) + '</span>'; }).join("");
+  return '<div class="row">' +
+  '<div class="row-main" data-act="toggle">' +
     '<div class="rank tnum">' + (rank ? String(rank).padStart(2,"0") : "··") + '</div>' +
     '<div class="name-block">' +
       '<span class="tkr">' + esc(c.tkr || "New entry") + '</span>' +
       '<span class="co">' + esc(c.co) + '</span>' +
       '<div class="meta tnum">' + meta + '</div>' +
-      (flags ? '<div class="flags">' + flags + '</div>' : '') +
+      '<div class="flags">' + flags + '</div>' +
     '</div>' +
     '<div class="mult tnum ' + multCls + '">' + multTxt + '</div>' +
-  '</div>' + editorHTML(c);
+  '</div>' + editorHTML(c) + '</div>' +
+  '<button class="row-del" data-del="' + c.id + '">Delete</button>';
 }
 
-function paint(){
-  var scored = data.map(function(c){
-    var a = assess(c);
-    return { c:c, a:a, m: a.excluded ? null : multiple(c) };
-  });
-  var ranked = scored.filter(function(s){ return s.m != null; }).sort(function(x,y){ return x.m - y.m; });
-  var rest = scored.filter(function(s){ return s.m == null; });
-
-  renderScale(ranked);
-  renderReadout(ranked);
-
+function renderList(scored){
   var led = document.getElementById("ledger");
   if (!data.length){
     led.innerHTML = '<div class="empty"><p>Nothing on the screen yet. Add a company by hand, ' +
-      'or load a list of ASX names with the sectors already tagged and pull their figures in.</p></div>';
+      'or load the Australian list and pull the figures in.</p></div>';
     return;
   }
+  var pool = scored.filter(function(s){ return visible(s.c) && searched(s.c); });
+  var ranked = pool.filter(function(s){ return s.m != null; }).sort(function(a,b){ return a.m - b.m; });
+  var rest = pool.filter(function(s){ return s.m == null; });
+
   var html = "";
   ranked.forEach(function(s, i){
-    html += '<div class="row' + (s.c.id === openId ? ' open' : '') +
+    html += '<div class="rowwrap' + (s.c.id === openId ? ' open' : '') +
       (s.m < ZONE_MAX ? ' in-zone' : '') + '" data-id="' + s.c.id + '">' +
       rowHTML(s.c, i + 1, s.a, s.m) + '</div>';
   });
   rest.forEach(function(s){
-    html += '<div class="row excluded' + (s.c.id === openId ? ' open' : '') + '" data-id="' + s.c.id + '">' +
+    html += '<div class="rowwrap excluded' + (s.c.id === openId ? ' open' : '') + '" data-id="' + s.c.id + '">' +
       rowHTML(s.c, null, s.a, null) + '</div>';
   });
+  if (!html) html = '<div class="empty"><p>Nothing matches the current filter.</p></div>';
   led.innerHTML = html;
+}
+
+function paint(){
+  var scored = scoreAll();
+  renderChips();
+  if (cfg.tab === "map"){ renderMap(scored); renderReadout(scored); }
+  else renderList(scored);
 }
 
 function save(){ store.set(KEY, data); }
 function saveCfg(){ store.set(CFGKEY, cfg); }
-function toast(msg){
+
+function toast(msg, undoable){
   var t = document.getElementById("toast");
-  t.textContent = msg; t.classList.add("show");
-  clearTimeout(t._h); t._h = setTimeout(function(){ t.classList.remove("show"); }, 2200);
+  document.getElementById("toastTxt").textContent = msg;
+  var old = t.querySelector("button"); if (old) old.remove();
+  if (undoable){
+    var b = document.createElement("button");
+    b.textContent = "Undo";
+    b.addEventListener("click", function(){
+      if (lastDeleted){
+        data.splice(Math.min(lastDeleted.idx, data.length), 0, lastDeleted.c);
+        lastDeleted = null;
+        save(); paint();
+      }
+      t.classList.remove("show");
+    });
+    t.appendChild(b);
+  }
+  t.classList.add("show");
+  clearTimeout(undoTimer);
+  undoTimer = setTimeout(function(){ t.classList.remove("show"); lastDeleted = null; }, undoable ? 5000 : 2200);
 }
 
+function deleteCompany(id){
+  var idx = -1;
+  data.forEach(function(c, i){ if (c.id === id) idx = i; });
+  if (idx < 0) return;
+  lastDeleted = { c: data[idx], idx: idx };
+  data.splice(idx, 1);
+  if (openId === id) openId = null;
+  if (pinnedId === id) pinnedId = null;
+  save(); paint();
+  toast("Deleted " + (lastDeleted.c.tkr || "entry"), true);
+}
+
+/* ===================== swipe to delete ===================== */
+(function(){
+  var led = document.getElementById("ledger");
+  var startX = 0, startY = 0, curRow = null, dragging = false, openRow = null;
+
+  function closeOpen(){
+    if (openRow){ openRow.style.transform = ""; openRow = null; }
+  }
+  led.addEventListener("touchstart", function(e){
+    var row = e.target.closest(".row");
+    if (!row || e.target.closest(".editor") || e.target.closest("button")) { curRow = null; return; }
+    if (openRow && openRow !== row) closeOpen();
+    curRow = row;
+    startX = e.touches[0].clientX;
+    startY = e.touches[0].clientY;
+    dragging = false;
+    row.style.transition = "none";
+  }, { passive: true });
+
+  led.addEventListener("touchmove", function(e){
+    if (!curRow) return;
+    var dx = e.touches[0].clientX - startX;
+    var dy = e.touches[0].clientY - startY;
+    if (!dragging){
+      if (Math.abs(dy) > Math.abs(dx) || Math.abs(dx) < 12){ if (Math.abs(dy) > 14) curRow = null; return; }
+      dragging = true;
+    }
+    var base = (openRow === curRow) ? -86 : 0;
+    var t = Math.min(0, Math.max(-120, base + dx));
+    curRow.style.transform = "translateX(" + t + "px)";
+  }, { passive: true });
+
+  led.addEventListener("touchend", function(){
+    if (!curRow) return;
+    var row = curRow; curRow = null;
+    row.style.transition = "";
+    var m = /translateX\((-?[\d.]+)px\)/.exec(row.style.transform || "");
+    var t = m ? parseFloat(m[1]) : 0;
+    if (t < -55){
+      row.style.transform = "translateX(-86px)";
+      openRow = row;
+    } else {
+      row.style.transform = "";
+      if (openRow === row) openRow = null;
+    }
+    dragging = false;
+  });
+
+  led.addEventListener("click", function(e){
+    var del = e.target.closest(".row-del");
+    if (del){ deleteCompany(del.dataset.del); openRow = null; return; }
+    if (openRow && !e.target.closest(".row-del")){ closeOpen(); }
+  });
+})();
+
 /* ===================== events ===================== */
+document.getElementById("search").addEventListener("input", function(){
+  if (cfg.tab === "list") renderList(scoreAll());
+});
+
 document.getElementById("ledger").addEventListener("click", function(e){
   var btn = e.target.closest("button");
-  if (btn){
+  if (btn && !btn.classList.contains("row-del")){
     var c = data.filter(function(x){ return x.id === btn.dataset.id; })[0];
     if (btn.dataset.mode && c){ c.mode = btn.dataset.mode; save(); paint(); return; }
     switch (btn.dataset.act){
       case "done":   openId = null; pasteOpen = null; paint(); return;
-      case "delete":
-        data = data.filter(function(x){ return x.id !== btn.dataset.id; });
-        openId = null; save(); paint(); toast("Deleted"); return;
+      case "delete": deleteCompany(btn.dataset.id); return;
       case "paste":
         pasteOpen = (pasteOpen === btn.dataset.id) ? null : btn.dataset.id;
         paint();
@@ -890,12 +1105,12 @@ document.getElementById("ledger").addEventListener("click", function(e){
   }
   var main = e.target.closest('[data-act="toggle"]');
   if (main){
-    var row = main.closest(".row");
-    openId = (openId === row.dataset.id) ? null : row.dataset.id;
+    var wrap = main.closest(".rowwrap");
+    openId = (openId === wrap.dataset.id) ? null : wrap.dataset.id;
     pasteOpen = null;
     paint();
     if (openId){
-      var el = document.querySelector('.row[data-id="' + openId + '"]');
+      var el = document.querySelector('.rowwrap[data-id="' + openId + '"]');
       if (el) el.scrollIntoView({ behavior:"smooth", block:"nearest" });
     }
   }
@@ -908,7 +1123,7 @@ document.getElementById("ledger").addEventListener("input", function(e){
   if (!c) return;
   c[el.dataset.k] = el.dataset.k === "tkr" ? el.value.toUpperCase() : el.value;
   save();
-  var calc = el.closest(".row").querySelector(".calc");
+  var calc = el.closest(".rowwrap").querySelector(".calc");
   if (calc) calc.innerHTML = calcHTML(c);
 });
 document.getElementById("ledger").addEventListener("change", function(e){
@@ -919,8 +1134,9 @@ document.getElementById("ledger").addEventListener("change", function(e){
 });
 
 document.getElementById("btnAdd").addEventListener("click", function(){
-  var c = blank(); data.unshift(c); openId = c.id; save(); paint();
-  var el = document.querySelector('.row[data-id="' + c.id + '"] input');
+  var c = blank(); data.unshift(c); openId = c.id;
+  save(); setTab("list");
+  var el = document.querySelector('.rowwrap[data-id="' + c.id + '"] input');
   if (el) el.focus();
 });
 document.getElementById("btnRefresh").addEventListener("click", function(){ refreshPrices(false); });
@@ -964,25 +1180,40 @@ document.getElementById("btnAutoToggle").addEventListener("click", function(){
   if (cfg.auto) refreshPrices(true);
 });
 
-/* ---- starter list ---- */
+/* ---- non-Australian cleanup ---- */
+var FOREIGN = ["XRO","FPH","AIA","SPK","CNU","MEZ","MCY","EBO","A2M","KMD",
+               "NEM","NWS","LNW","XYZ","SQ2","JHG","AMC","JHX","RMD","FBU","VUK","360"];
+document.getElementById("btnPrune").addEventListener("click", function(){
+  var hits = data.filter(function(c){ return FOREIGN.indexOf(c.tkr) >= 0; });
+  if (!hits.length){ toast("No foreign names found"); return; }
+  if (!confirm("Remove " + hits.length + " non-Australian companies (" +
+    hits.map(function(c){ return c.tkr; }).join(", ") + ")?")) return;
+  data = data.filter(function(c){ return FOREIGN.indexOf(c.tkr) < 0; });
+  save(); paint(); toast(hits.length + " removed");
+});
+
+/* ---- starter list · Australian companies only ---- */
 var STARTER = [
  ["BHP","BHP Group","Materials"],["RIO","Rio Tinto","Materials"],["FMG","Fortescue","Materials"],
  ["S32","South32","Materials"],["NST","Northern Star","Materials"],["EVN","Evolution Mining","Materials"],
- ["MIN","Mineral Resources","Materials"],["ORI","Orica","Materials"],["JHX","James Hardie","Materials"],
- ["AMC","Amcor","Materials"],["IGO","IGO Ltd","Materials"],["PLS","Pilbara Minerals","Materials"],
- ["NEM","Newmont CDI","Materials"],["LYC","Lynas Rare Earths","Materials"],["ILU","Iluka Resources","Materials"],
+ ["MIN","Mineral Resources","Materials"],["ORI","Orica","Materials"],["IGO","IGO Ltd","Materials"],
+ ["PLS","Pilbara Minerals","Materials"],["LYC","Lynas Rare Earths","Materials"],["ILU","Iluka Resources","Materials"],
  ["DRR","Deterra Royalties","Materials"],["SFR","Sandfire Resources","Materials"],["BSL","BlueScope Steel","Materials"],
  ["SGM","Sims Ltd","Materials"],["ORA","Orora","Materials"],["CIA","Champion Iron","Materials"],
  ["NIC","Nickel Industries","Materials"],["LTR","Liontown Resources","Materials"],
  ["RRL","Regis Resources","Materials"],["RMS","Ramelius Resources","Materials"],["PRU","Perseus Mining","Materials"],
  ["CMM","Capricorn Metals","Materials"],["WGX","Westgold Resources","Materials"],["BGL","Bellevue Gold","Materials"],
  ["GMD","Genesis Minerals","Materials"],["VAU","Vault Minerals","Materials"],["WAF","West African Resources","Materials"],
- ["EMR","Emerald Resources","Materials"],
+ ["EMR","Emerald Resources","Materials"],["OBM","Ora Banda Mining","Materials"],["ALK","Alkane Resources","Materials"],
+ ["MGX","Mount Gibson Iron","Materials"],["GRR","Grange Resources","Materials"],["DVP","Develop Global","Materials"],
+ ["CHN","Chalice Mining","Materials"],["NUF","Nufarm","Materials"],["RSG","Resolute Mining","Materials"],
+ ["DNL","Dyno Nobel","Materials"],["GWA","GWA Group","Materials"],["MGH","Maas Group","Materials"],
  ["WDS","Woodside Energy","Energy"],["STO","Santos","Energy"],["WHC","Whitehaven Coal","Energy"],
  ["NHC","New Hope Corp","Energy"],["BPT","Beach Energy","Energy"],["YAL","Yancoal","Energy"],
  ["ALD","Ampol","Energy"],["VEA","Viva Energy","Energy"],["KAR","Karoon Energy","Energy"],
  ["WOR","Worley","Energy"],["PDN","Paladin Energy","Energy"],["BOE","Boss Energy","Energy"],
- ["DYL","Deep Yellow","Energy"],
+ ["DYL","Deep Yellow","Energy"],["SMR","Stanmore Resources","Energy"],["CRN","Coronado Global","Energy"],
+ ["COE","Cooper Energy","Energy"],
  ["WES","Wesfarmers","Consumer Discretionary"],["JBH","JB Hi-Fi","Consumer Discretionary"],
  ["HVN","Harvey Norman","Consumer Discretionary"],["ALL","Aristocrat Leisure","Consumer Discretionary"],
  ["SUL","Super Retail Group","Consumer Discretionary"],["NCK","Nick Scali","Consumer Discretionary"],
@@ -994,36 +1225,57 @@ var STARTER = [
  ["TAH","Tabcorp","Consumer Discretionary"],["SGR","Star Entertainment","Consumer Discretionary"],
  ["AX1","Accent Group","Consumer Discretionary"],["BAP","Bapcor","Consumer Discretionary"],
  ["AOV","Amotiv","Consumer Discretionary"],["TPW","Temple & Webster","Consumer Discretionary"],
- ["LNW","Light & Wonder","Consumer Discretionary"],["IEL","IDP Education","Consumer Discretionary"],
- ["CKF","Collins Foods","Consumer Discretionary"],
+ ["IEL","IDP Education","Consumer Discretionary"],["CKF","Collins Foods","Consumer Discretionary"],
+ ["GYG","Guzman y Gomez","Consumer Discretionary"],["UNI","Universal Store","Consumer Discretionary"],
+ ["MYR","Myer","Consumer Discretionary"],["BBN","Baby Bunting","Consumer Discretionary"],
+ ["PWH","PWR Holdings","Consumer Discretionary"],["JIN","Jumbo Interactive","Consumer Discretionary"],
+ ["FWD","Fleetwood","Consumer Discretionary"],
  ["WOW","Woolworths","Consumer Staples"],["COL","Coles Group","Consumer Staples"],
  ["EDV","Endeavour Group","Consumer Staples"],["MTS","Metcash","Consumer Staples"],
- ["TWE","Treasury Wine","Consumer Staples"],["A2M","a2 Milk","Consumer Staples"],
- ["BGA","Bega Cheese","Consumer Staples"],["ING","Inghams Group","Consumer Staples"],
- ["ELD","Elders","Consumer Staples"],["GNC","GrainCorp","Consumer Staples"],
- ["SIG","Sigma Healthcare","Consumer Staples"],
- ["CSL","CSL Ltd","Health Care"],["RMD","ResMed","Health Care"],["COH","Cochlear","Health Care"],
+ ["TWE","Treasury Wine","Consumer Staples"],["BGA","Bega Cheese","Consumer Staples"],
+ ["ING","Inghams Group","Consumer Staples"],["ELD","Elders","Consumer Staples"],
+ ["GNC","GrainCorp","Consumer Staples"],["RIC","Ridley Corp","Consumer Staples"],
+ ["SHV","Select Harvests","Consumer Staples"],["AAC","Aust Agricultural Co","Consumer Staples"],
+ ["CSL","CSL Ltd","Health Care"],["COH","Cochlear","Health Care"],
  ["SHL","Sonic Healthcare","Health Care"],["RHC","Ramsay Health Care","Health Care"],
- ["FPH","Fisher & Paykel","Health Care"],["PME","Pro Medicus","Health Care"],
- ["TLX","Telix Pharmaceuticals","Health Care"],["EBO","Ebos Group","Health Care"],
+ ["PME","Pro Medicus","Health Care"],["TLX","Telix Pharmaceuticals","Health Care"],
  ["ANN","Ansell","Health Care"],["NEU","Neuren Pharma","Health Care"],
+ ["SIG","Sigma Healthcare","Health Care"],["NAN","Nanosonics","Health Care"],
+ ["HLS","Healius","Health Care"],["CUV","Clinuvel","Health Care"],
+ ["IDX","Integral Diagnostics","Health Care"],["MVF","Monash IVF","Health Care"],
+ ["ACL","Aust Clinical Labs","Health Care"],["PNV","PolyNovo","Health Care"],
+ ["MSB","Mesoblast","Health Care"],
  ["QAN","Qantas","Industrials"],["BXB","Brambles","Industrials"],["ALQ","ALS Ltd","Industrials"],
  ["REH","Reece","Industrials"],["DOW","Downer EDI","Industrials"],["MND","Monadelphous","Industrials"],
  ["SVW","Seven Group","Industrials"],["TCL","Transurban","Industrials"],
  ["CPU","Computershare","Industrials"],["CWY","Cleanaway","Industrials"],["AZJ","Aurizon","Industrials"],
  ["QUB","Qube Holdings","Industrials"],["VNT","Ventia Services","Industrials"],["IPH","IPH Ltd","Industrials"],
- ["AIA","Auckland Airport","Industrials"],["ALX","Atlas Arteria","Industrials"],
+ ["ALX","Atlas Arteria","Industrials"],["NWH","NRW Holdings","Industrials"],
+ ["MAH","Macmahon Holdings","Industrials"],["PRN","Perenti","Industrials"],
+ ["EHL","Emeco Holdings","Industrials"],["RWC","Reliance Worldwide","Industrials"],
+ ["SSM","Service Stream","Industrials"],["LYL","Lycopodium","Industrials"],
+ ["GNG","GR Engineering","Industrials"],["ANG","Austin Engineering","Industrials"],
+ ["DUR","Duratec","Industrials"],["ASB","Austal","Industrials"],
+ ["SXE","Southern Cross Electrical","Industrials"],["SRG","SRG Global","Industrials"],
+ ["KLS","Kelsian Group","Industrials"],["SIQ","Smartgroup","Industrials"],
+ ["MMS","McMillan Shakespeare","Industrials"],["JLG","Johns Lyng","Industrials"],
+ ["DBI","Dalrymple Bay Infra","Industrials"],
  ["TLS","Telstra","Communication Services"],["REA","REA Group","Communication Services"],
  ["CAR","CAR Group","Communication Services"],["SEK","Seek","Communication Services"],
- ["TPG","TPG Telecom","Communication Services"],["SPK","Spark NZ","Communication Services"],
- ["NWS","News Corp CDI","Communication Services"],["NEC","Nine Entertainment","Communication Services"],
- ["WTC","WiseTech Global","Information Technology"],["XRO","Xero","Information Technology"],
- ["TNE","TechnologyOne","Information Technology"],["NXT","NextDC","Information Technology"],
- ["IRE","Iress","Information Technology"],["MP1","Megaport","Information Technology"],
- ["CDA","Codan","Information Technology"],["DTL","Data#3","Information Technology"],
- ["SDR","SiteMinder","Information Technology"],["360","Life360","Information Technology"],
+ ["TPG","TPG Telecom","Communication Services"],["NEC","Nine Entertainment","Communication Services"],
+ ["EVT","EVT Ltd","Communication Services"],["SXL","Southern Cross Media","Communication Services"],
+ ["OML","oOh!media","Communication Services"],["SWM","Seven West Media","Communication Services"],
+ ["ABB","Aussie Broadband","Communication Services"],["SLC","Superloop","Communication Services"],
+ ["MAQ","Macquarie Technology","Communication Services"],
+ ["WTC","WiseTech Global","Information Technology"],["TNE","TechnologyOne","Information Technology"],
+ ["NXT","NextDC","Information Technology"],["IRE","Iress","Information Technology"],
+ ["MP1","Megaport","Information Technology"],["CDA","Codan","Information Technology"],
+ ["DTL","Data#3","Information Technology"],["SDR","SiteMinder","Information Technology"],
+ ["TYR","Tyro Payments","Information Technology"],["HSN","Hansen Technologies","Information Technology"],
+ ["OCL","Objective Corp","Information Technology"],["NXL","Nuix","Information Technology"],
+ ["DDR","Dicker Data","Information Technology"],["BVS","Bravura Solutions","Information Technology"],
+ ["CAT","Catapult Sports","Information Technology"],["RUL","RPMGlobal","Information Technology"],
  ["ORG","Origin Energy","Utilities"],["AGL","AGL Energy","Utilities"],["APA","APA Group","Utilities"],
- ["MEZ","Meridian Energy","Utilities"],["MCY","Mercury NZ","Utilities"],
  ["CBA","Commonwealth Bank","Financials"],["WBC","Westpac","Financials"],["NAB","NAB","Financials"],
  ["ANZ","ANZ Group","Financials"],["MQG","Macquarie Group","Financials"],["QBE","QBE Insurance","Financials"],
  ["SUN","Suncorp","Financials"],["IAG","Insurance Australia","Financials"],["ASX","ASX Ltd","Financials"],
@@ -1031,17 +1283,8 @@ var STARTER = [
  ["MPL","Medibank","Financials"],["NHF","NIB Holdings","Financials"],["SDF","Steadfast","Financials"],
  ["AUB","AUB Group","Financials"],["PNI","Pinnacle Investment","Financials"],["GQG","GQG Partners","Financials"],
  ["PPT","Perpetual","Financials"],["CGF","Challenger","Financials"],["HUB","Hub24","Financials"],
- ["NWL","Netwealth","Financials"],["XYZ","Block CDI","Financials"],["ZIP","Zip Co","Financials"],
- ["NUF","Nufarm","Materials"],["RSG","Resolute Mining","Materials"],["DNL","Dyno Nobel","Materials"],
- ["CRN","Coronado Global","Energy"],
- ["GYG","Guzman y Gomez","Consumer Discretionary"],
- ["NAN","Nanosonics","Health Care"],["HLS","Healius","Health Care"],
- ["NWH","NRW Holdings","Industrials"],["MAH","Macmahon Holdings","Industrials"],
- ["PRN","Perenti","Industrials"],["EHL","Emeco Holdings","Industrials"],
- ["FBU","Fletcher Building","Industrials"],["RWC","Reliance Worldwide","Industrials"],
- ["CNU","Chorus","Communication Services"],["EVT","EVT Ltd","Communication Services"],
- ["TYR","Tyro Payments","Information Technology"],
- ["AMP","AMP","Financials"],["MFG","Magellan","Financials"],["JHG","Janus Henderson","Financials"],
+ ["NWL","Netwealth","Financials"],["ZIP","Zip Co","Financials"],["AMP","AMP","Financials"],
+ ["MFG","Magellan","Financials"],
  ["GMG","Goodman Group","Real Estate (REIT)"],["SCG","Scentre Group","Real Estate (REIT)"],
  ["SGP","Stockland","Real Estate (REIT)"],["MGR","Mirvac","Real Estate (REIT)"],
  ["DXS","Dexus","Real Estate (REIT)"],["VCX","Vicinity Centres","Real Estate (REIT)"],
@@ -1129,15 +1372,26 @@ function parseCSV(text){
 }
 
 /* ===================== boot ===================== */
-buildAxis();
+var resizeT = null;
+window.addEventListener("resize", function(){
+  clearTimeout(resizeT);
+  resizeT = setTimeout(function(){ if (cfg.tab === "map") paint(); }, 200);
+});
+
 Promise.all([store.get(KEY), store.get(CFGKEY)]).then(function(r){
   if (Array.isArray(r[0])) data = r[0].map(function(c){
     var b = blank(); for (var k in c) if (k in b) b[k] = c[k]; b.id = c.id || uid(); return b;
   });
-  if (r[1] && typeof r[1] === "object") cfg = { proxy: r[1].proxy || "", auto: !!r[1].auto };
+  if (r[1] && typeof r[1] === "object"){
+    cfg.proxy = r[1].proxy || "";
+    cfg.auto = !!r[1].auto;
+    cfg.tab = r[1].tab === "list" ? "list" : "map";
+    cfg.sector = r[1].sector || "";
+    cfg.showEx = !!r[1].showEx;
+  }
   document.getElementById("proxyUrl").value = cfg.proxy;
   document.getElementById("btnAutoToggle").textContent = "Auto-refresh: " + (cfg.auto ? "on" : "off");
-  paint();
+  setTab(cfg.tab);
 
   if (cfg.auto && cfg.proxy){
     var stale = data.some(function(c){ return c.tkr && (!c.updated || Date.now() - c.updated > 6*3600*1000); });
