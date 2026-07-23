@@ -67,16 +67,24 @@ body{
   background:var(--paper-2);color:var(--ink);border:1.5px solid var(--rule);border-radius:0}
 .searchrow input:focus{outline:none;border-color:var(--ink);box-shadow:inset 0 -2px 0 var(--green)}
 
-/* ---------- treemap ---------- */
+/* ---------- bubble chart ---------- */
 .mapwrap{position:relative;border:1.5px solid var(--ink);background:var(--paper-2);
   overflow:hidden;touch-action:manipulation}
-.tile{position:absolute;overflow:hidden;cursor:pointer;
-  border:1px solid rgba(233,235,229,.9);display:flex;flex-direction:column;
-  justify-content:center;align-items:center;text-align:center;padding:1px}
-.tile .t{font-family:var(--cond);font-weight:700;line-height:1;letter-spacing:.01em}
-.tile .m{font-family:var(--mono);font-weight:500;line-height:1.15}
-.tile.zone{box-shadow:inset 0 0 0 2px var(--ink)}
-.tile.on{box-shadow:inset 0 0 0 3px var(--paper), inset 0 0 0 5px var(--ink);z-index:2}
+.bub{position:absolute;border-radius:50%;cursor:pointer;
+  display:flex;align-items:center;justify-content:center;
+  border:1px solid rgba(233,235,229,.85);
+  transform:translate(-50%,-50%)}
+.bub span{font-family:var(--cond);font-weight:700;line-height:1;pointer-events:none}
+.bub.on{box-shadow:0 0 0 2px var(--paper),0 0 0 4px var(--ink);z-index:5}
+.gline{position:absolute;background:var(--rule);pointer-events:none}
+.gline.h{left:0;right:0;height:1px}
+.gline.v{top:0;bottom:0;width:1px}
+.glab{position:absolute;font-family:var(--mono);font-size:.62rem;color:var(--ink-soft);
+  pointer-events:none;white-space:nowrap}
+.zoneband{position:absolute;left:0;right:0;bottom:0;background:var(--green-wash);
+  border-top:1px dashed rgba(10,107,74,.5);pointer-events:none}
+.zonelab{position:absolute;left:6px;font-family:var(--cond);font-weight:600;font-size:.64rem;
+  letter-spacing:.12em;text-transform:uppercase;color:var(--green);pointer-events:none}
 .mapfoot{display:flex;justify-content:space-between;gap:.8rem;
   font-family:var(--mono);font-size:.72rem;color:var(--ink-soft);padding:.5rem .1rem}
 .readout{min-height:2.4rem;margin-top:.2rem;padding:.5rem .6rem;background:var(--paper-2);
@@ -122,11 +130,11 @@ button.mini{font-size:.66rem;padding:.32rem .55rem;letter-spacing:.07em}
 /* ---------- ledger ---------- */
 .ledger{border-top:1.5px solid var(--ink)}
 .rowwrap{position:relative;overflow:hidden;border-bottom:1px solid var(--rule)}
-.row-del{position:absolute;right:0;top:0;bottom:0;width:86px;background:var(--oxide);
-  color:#fff;border:0;font-family:var(--cond);font-weight:700;font-size:.72rem;
-  letter-spacing:.1em;text-transform:uppercase;display:flex;align-items:center;
-  justify-content:center;cursor:pointer}
-.row{position:relative;background:var(--paper);transition:transform .22s cubic-bezier(.2,.8,.3,1);
+.swipehint{position:absolute;inset:0;background:var(--oxide);color:#fff;
+  display:flex;align-items:center;justify-content:flex-end;padding-right:1.1rem;
+  font-family:var(--cond);font-weight:700;font-size:.72rem;letter-spacing:.1em;
+  text-transform:uppercase;opacity:0;pointer-events:none}
+.row{position:relative;z-index:1;background:var(--paper);transition:transform .22s cubic-bezier(.2,.8,.3,1);
   touch-action:pan-y}
 .rowwrap.in-zone .row{box-shadow:inset 3px 0 0 var(--green)}
 .row-main{display:grid;grid-template-columns:2.1rem 1fr auto;gap:.7rem;align-items:center;
@@ -228,7 +236,7 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
   <section id="viewMap">
     <div class="mapwrap" id="treemap"></div>
     <div class="mapfoot"><span id="mapCount"></span><span id="mapMedian"></span></div>
-    <div class="readout" id="readout">Tap a tile for details. Tile size is company size, colour is sector, outlined tiles sit in the value zone under 8×.</div>
+    <div class="readout" id="readout">Cheap is low, safe is left. Bubble size is company size, colour is sector. Tap one for details.</div>
   </section>
 
   <section id="viewList" style="display:none">
@@ -272,7 +280,7 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
     <summary>Method, setup &amp; the ASX catches</summary>
 
     <h3>Map and list</h3>
-    <p>The map shows every rankable company: tile size is market cap, colour is sector, and tiles outlined in ink sit inside the value zone under 8×. Tap a tile for its numbers, then open it in the list to edit. The list is the full ranking. Swipe a row left to delete it — an undo appears for a few seconds. Sector chips filter both views, and the Banks &amp; REITs chip shows or hides the financial names, which never rank either way.</p>
+    <p>The chart puts the multiple on the vertical axis — <b>cheap sits low</b>, inside the shaded value zone under 8×. Left to right is net debt measured in years of operating earnings, so <b>left is safer</b>: the bottom-left corner is cheap companies that could pay their debt off quickly, and anything left of the "no net debt" line is sitting on net cash. Bubble size is market cap, colour is sector. Tap a bubble for its numbers, then Open jumps to its row. The list is the full ranking. Swipe a row left and confirm to delete it — an undo appears for a few seconds. Sector chips filter both views, and the Banks &amp; REITs chip shows or hides the financial names, which never rank either way.</p>
 
     <h3>Setting up auto-update</h3>
     <ol>
@@ -740,85 +748,96 @@ function setTab(t){
 document.getElementById("tabMap").addEventListener("click", function(){ setTab("map"); });
 document.getElementById("tabList").addEventListener("click", function(){ setTab("list"); });
 
-/* ===================== treemap ===================== */
-function squarify(nodes, W, H){
-  var total = 0;
-  nodes.forEach(function(n){ total += n.v; });
-  if (!total) return [];
-  nodes.forEach(function(n){ n.a = n.v / total * W * H; });
-  var rects = [], x = 0, y = 0, w = W, h = H, row = [], i = 0;
+/* ===================== bubble chart ===================== */
+var Y_MAX = 20, X_MIN = -2, X_MAX = 6;
 
-  function sum(r){ var s = 0; r.forEach(function(n){ s += n.a; }); return s; }
-  function worst(r, len){
-    var s = sum(r), mx = 0, mn = Infinity;
-    r.forEach(function(n){ if (n.a > mx) mx = n.a; if (n.a < mn) mn = n.a; });
-    return Math.max(len*len*mx/(s*s), s*s/(len*len*mn));
-  }
-  function layoutRow(r){
-    var s = sum(r), horiz = w >= h, len = horiz ? h : w, thick = s / len, off = 0;
-    r.forEach(function(n){
-      var l = n.a / thick;
-      if (horiz){ n.x = x; n.y = y + off; n.w = thick; n.h = l; }
-      else      { n.x = x + off; n.y = y; n.w = l; n.h = thick; }
-      rects.push(n); off += l;
-    });
-    if (horiz){ x += thick; w -= thick; } else { y += thick; h -= thick; }
-  }
-  while (i < nodes.length){
-    var n = nodes[i], len = Math.min(w, h);
-    if (!row.length || worst(row.concat([n]), len) <= worst(row, len)){ row.push(n); i++; }
-    else { layoutRow(row); row = []; }
-  }
-  if (row.length) layoutRow(row);
-  return rects;
+function scatterLayout(items, W, H){
+  // items: [{m: multiple, lev: netDebt/earnings, mc: market cap}]
+  var maxMc = 0;
+  items.forEach(function(it){ if (it.mc > maxMc) maxMc = it.mc; });
+  var rK = 24 / Math.sqrt(Math.max(maxMc, 1));
+  return items.map(function(it){
+    var m = Math.min(it.m, Y_MAX);
+    var lev = Math.max(X_MIN, Math.min(X_MAX, it.lev));
+    var r = Math.max(6, Math.min(26, 5 + Math.sqrt(Math.max(it.mc, 0)) * rK));
+    return {
+      x: (lev - X_MIN) / (X_MAX - X_MIN) * W,
+      y: H - (m / Y_MAX) * H,
+      r: r
+    };
+  });
 }
 
 function renderMap(scored){
   var host = document.getElementById("treemap");
   var pool = scored.filter(function(s){
     return s.m != null && visible(s.c) && mcap(s.c) > 0;
-  }).sort(function(a,b){ return mcap(b.c) - mcap(a.c); });
+  }).sort(function(a,b){ return mcap(b.c) - mcap(a.c); }); // big first, small drawn on top
 
   var W = host.clientWidth || 340;
-  var H = Math.max(340, Math.min(600, Math.round(pool.length * 3.2)));
+  var H = 480;
   host.style.height = H + "px";
 
   if (!pool.length){
     host.innerHTML = '<div style="position:absolute;inset:0;display:flex;align-items:center;' +
       'justify-content:center;padding:1.5rem;text-align:center;font-family:var(--mono);' +
-      'font-size:.78rem;color:var(--ink-soft)">Nothing rankable to map yet — pull some financials first.</div>';
+      'font-size:.78rem;color:var(--ink-soft)">Nothing rankable to chart yet — pull some financials first.</div>';
     document.getElementById("mapCount").textContent = "";
     document.getElementById("mapMedian").textContent = "";
     return;
   }
 
-  var nodes = pool.map(function(s){ return { v: mcap(s.c), s: s }; });
-  var rects = squarify(nodes, W, H);
   var html = "";
-  rects.forEach(function(r){
-    var s = r.s, col = SECCOL[s.c.sector] || "#666", txt = secText(s.c.sector);
-    var showT = r.w > 34 && r.h > 22;
-    var showM = r.w > 44 && r.h > 36;
-    var fsT = Math.max(9, Math.min(15, Math.floor(Math.min(r.w/3.4, r.h/2.6))));
-    html += '<div class="tile' + (s.m < ZONE_MAX ? ' zone' : '') +
-      (s.c.id === pinnedId ? ' on' : '') + '" data-id="' + s.c.id + '" style="left:' +
-      r.x.toFixed(1) + 'px;top:' + r.y.toFixed(1) + 'px;width:' + Math.max(0, r.w - 0.5).toFixed(1) +
-      'px;height:' + Math.max(0, r.h - 0.5).toFixed(1) + 'px;background:' + col + ';color:' + txt + '">' +
-      (showT ? '<span class="t" style="font-size:' + fsT + 'px">' + esc(s.c.tkr) + '</span>' : '') +
-      (showM ? '<span class="m" style="font-size:' + Math.max(8, fsT - 3) + 'px">' + fmtX(s.m) + '</span>' : '') +
-      '</div>';
+
+  // value zone band: everything under 8x
+  var zoneH = (ZONE_MAX / Y_MAX) * H;
+  html += '<div class="zoneband" style="height:' + zoneH.toFixed(1) + 'px"></div>' +
+    '<div class="zonelab" style="bottom:' + (zoneH - 16).toFixed(1) + 'px">Value zone · under 8×</div>';
+
+  // horizontal gridlines: every 4x of multiple
+  for (var gm = 4; gm <= Y_MAX; gm += 4){
+    var gy = H - (gm / Y_MAX) * H;
+    html += '<div class="gline h" style="top:' + gy.toFixed(1) + 'px"></div>' +
+      '<div class="glab" style="left:4px;top:' + (gy + 2).toFixed(1) + 'px">' +
+      (gm === Y_MAX ? gm + "×+" : gm + "×") + '</div>';
+  }
+
+  // vertical gridlines: net debt in years of earnings
+  for (var gl = 0; gl <= X_MAX; gl += 2){
+    var gx = (gl - X_MIN) / (X_MAX - X_MIN) * W;
+    html += '<div class="gline v" style="left:' + gx.toFixed(1) + 'px;opacity:' + (gl === 0 ? 1 : .55) + '"></div>' +
+      '<div class="glab" style="left:' + (gx + 3).toFixed(1) + 'px;bottom:2px">' +
+      (gl === 0 ? "no net debt" : gl + "yr") + '</div>';
+  }
+  html += '<div class="glab" style="left:6px;bottom:14px;color:var(--ink)">◂ net cash</div>' +
+    '<div class="glab" style="right:4px;top:2px;text-align:right">debt, in years of earnings ▸</div>';
+
+  var items = pool.map(function(s){
+    return { m: s.m, lev: netDebt(s.c) / opEarn(s.c), mc: mcap(s.c) };
   });
+  var pts = scatterLayout(items, W, H);
+
+  pool.forEach(function(s, i){
+    var p = pts[i];
+    var col = SECCOL[s.c.sector] || "#666", txt = secText(s.c.sector);
+    var label = p.r >= 13 ? '<span style="font-size:' + Math.max(8, Math.min(12, Math.floor(p.r * .72))) +
+      'px;color:' + txt + '">' + esc(s.c.tkr) + '</span>' : '';
+    html += '<div class="bub' + (s.c.id === pinnedId ? ' on' : '') + '" data-id="' + s.c.id +
+      '" style="left:' + p.x.toFixed(1) + 'px;top:' + p.y.toFixed(1) + 'px;width:' + (p.r*2).toFixed(1) +
+      'px;height:' + (p.r*2).toFixed(1) + 'px;background:' + col + 'C4">' + label + '</div>';
+  });
+
   host.innerHTML = html;
 
   var ranked = pool.slice().sort(function(a,b){ return a.m - b.m; });
   var inZone = ranked.filter(function(s){ return s.m < ZONE_MAX; }).length;
   var mid = ranked[Math.floor((ranked.length - 1) / 2)].m;
-  document.getElementById("mapCount").textContent = ranked.length + " mapped · " + inZone + " in value zone";
+  document.getElementById("mapCount").textContent = ranked.length + " charted · " + inZone + " in value zone";
   document.getElementById("mapMedian").textContent = "median " + fmtX(mid);
 }
 
 document.getElementById("treemap").addEventListener("click", function(e){
-  var t = e.target.closest(".tile"); if (!t) return;
+  var t = e.target.closest(".bub"); if (!t) return;
   pinnedId = t.dataset.id;
   paint();
 });
@@ -829,8 +848,11 @@ function renderReadout(scored){
   scored.forEach(function(s){ if (s.c.id === pinnedId && s.m != null) hit = s; });
   if (hit){
     var c = hit.c;
+    var lev = netDebt(c) / opEarn(c);
+    var levTxt = lev < 0 ? "net cash" : "net debt " + lev.toFixed(1) + "× earnings";
     ro.innerHTML = "<b>" + esc(c.tkr) + "</b> " + esc(c.co) + " · " + esc(SHORTSEC[c.sector]) +
-      " · " + fmtM(mcap(c)) + "<br>EV " + fmtM(ev(c)) + " ÷ OE " + fmtM(opEarn(c)) +
+      " · " + fmtM(mcap(c)) + " · " + levTxt +
+      "<br>EV " + fmtM(ev(c)) + " ÷ OE " + fmtM(opEarn(c)) +
       " = <b>" + fmtX(hit.m) + "</b>" +
       '<button class="mini" id="btnOpenPinned">Open</button>';
     var b = document.getElementById("btnOpenPinned");
@@ -843,7 +865,7 @@ function renderReadout(scored){
     });
     return;
   }
-  ro.textContent = "Tap a tile for details. Tile size is company size, colour is sector, outlined tiles sit in the value zone under 8×.";
+  ro.textContent = "Cheap is low, safe is left. Bubble size is company size, colour is sector. Tap one for details.";
 }
 
 /* ===================== list ===================== */
@@ -930,7 +952,7 @@ function rowHTML(c, rank, a, m){
     ';color:' + secText(c.sector) + '">' + esc(SHORTSEC[c.sector]) + '</span>' +
     a.flags.map(function(fl){
       return '<span class="flag ' + fl.k + '">' + esc(fl.t) + '</span>'; }).join("");
-  return '<div class="row">' +
+  return '<div class="swipehint">Delete</div><div class="row">' +
   '<div class="row-main" data-act="toggle">' +
     '<div class="rank tnum">' + (rank ? String(rank).padStart(2,"0") : "··") + '</div>' +
     '<div class="name-block">' +
@@ -940,8 +962,7 @@ function rowHTML(c, rank, a, m){
       '<div class="flags">' + flags + '</div>' +
     '</div>' +
     '<div class="mult tnum ' + multCls + '">' + multTxt + '</div>' +
-  '</div>' + editorHTML(c) + '</div>' +
-  '<button class="row-del" data-del="' + c.id + '">Delete</button>';
+  '</div>' + editorHTML(c) + '</div>';
 }
 
 function renderList(scored){
@@ -1016,16 +1037,13 @@ function deleteCompany(id){
 /* ===================== swipe to delete ===================== */
 (function(){
   var led = document.getElementById("ledger");
-  var startX = 0, startY = 0, curRow = null, dragging = false, openRow = null;
+  var startX = 0, startY = 0, curRow = null, curHint = null, dragging = false;
 
-  function closeOpen(){
-    if (openRow){ openRow.style.transform = ""; openRow = null; }
-  }
   led.addEventListener("touchstart", function(e){
     var row = e.target.closest(".row");
     if (!row || e.target.closest(".editor") || e.target.closest("button")) { curRow = null; return; }
-    if (openRow && openRow !== row) closeOpen();
     curRow = row;
+    curHint = row.parentNode.querySelector(".swipehint");
     startX = e.touches[0].clientX;
     startY = e.touches[0].clientY;
     dragging = false;
@@ -1040,31 +1058,32 @@ function deleteCompany(id){
       if (Math.abs(dy) > Math.abs(dx) || Math.abs(dx) < 12){ if (Math.abs(dy) > 14) curRow = null; return; }
       dragging = true;
     }
-    var base = (openRow === curRow) ? -86 : 0;
-    var t = Math.min(0, Math.max(-120, base + dx));
+    var t = Math.min(0, Math.max(-150, dx));
     curRow.style.transform = "translateX(" + t + "px)";
+    if (curHint) curHint.style.opacity = Math.min(1, -t / 90);
   }, { passive: true });
 
   led.addEventListener("touchend", function(){
     if (!curRow) return;
-    var row = curRow; curRow = null;
+    var row = curRow, hint = curHint;
+    curRow = null; curHint = null;
     row.style.transition = "";
     var m = /translateX\((-?[\d.]+)px\)/.exec(row.style.transform || "");
     var t = m ? parseFloat(m[1]) : 0;
-    if (t < -55){
-      row.style.transform = "translateX(-86px)";
-      openRow = row;
-    } else {
-      row.style.transform = "";
-      if (openRow === row) openRow = null;
-    }
-    dragging = false;
-  });
+    var wrap = row.closest(".rowwrap");
+    var id = wrap ? wrap.dataset.id : null;
 
-  led.addEventListener("click", function(e){
-    var del = e.target.closest(".row-del");
-    if (del){ deleteCompany(del.dataset.del); openRow = null; return; }
-    if (openRow && !e.target.closest(".row-del")){ closeOpen(); }
+    if (t < -90 && id){
+      var c = data.filter(function(x){ return x.id === id; })[0];
+      var name = c ? (c.tkr || "this entry") : "this entry";
+      if (confirm("Delete " + name + "?")){
+        deleteCompany(id);
+        return;
+      }
+    }
+    row.style.transform = "";
+    if (hint) hint.style.opacity = 0;
+    dragging = false;
   });
 })();
 
@@ -1075,12 +1094,14 @@ document.getElementById("search").addEventListener("input", function(){
 
 document.getElementById("ledger").addEventListener("click", function(e){
   var btn = e.target.closest("button");
-  if (btn && !btn.classList.contains("row-del")){
+  if (btn){
     var c = data.filter(function(x){ return x.id === btn.dataset.id; })[0];
     if (btn.dataset.mode && c){ c.mode = btn.dataset.mode; save(); paint(); return; }
     switch (btn.dataset.act){
       case "done":   openId = null; pasteOpen = null; paint(); return;
-      case "delete": deleteCompany(btn.dataset.id); return;
+      case "delete":
+        if (c && confirm("Delete " + (c.tkr || "this entry") + "?")) deleteCompany(btn.dataset.id);
+        return;
       case "paste":
         pasteOpen = (pasteOpen === btn.dataset.id) ? null : btn.dataset.id;
         paint();
