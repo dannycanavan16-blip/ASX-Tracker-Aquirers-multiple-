@@ -83,20 +83,33 @@ body{
   font-size:1rem;padding:0;box-shadow:none;display:flex;align-items:center;justify-content:center}
 .themebtn:hover{background:rgba(255,255,255,.2);color:#fff}
 
-/* ---------- filter chips + search ---------- */
-.chips{display:flex;gap:.4rem;overflow-x:auto;padding:.9rem 0 .3rem;
-  -webkit-overflow-scrolling:touch;scrollbar-width:none}
-.chips::-webkit-scrollbar{display:none}
-.chip{flex:0 0 auto;font-family:var(--cond);font-weight:600;font-size:.72rem;
-  letter-spacing:.05em;padding:.36rem .7rem;
-  border:1px solid var(--rule);background:var(--paper-2);color:var(--ink-soft);
-  border-radius:999px;cursor:pointer;display:flex;align-items:center;gap:.35rem;white-space:nowrap;
+/* ---------- sector filter dropdown ---------- */
+.sectorfilter{position:relative;padding:.9rem 0 .3rem}
+.filterbtn{font-family:var(--sans);font-weight:600;font-size:.82rem;
+  padding:.5rem .7rem .5rem .9rem;border:1px solid var(--rule);background:var(--paper-2);
+  color:var(--ink);border-radius:999px;cursor:pointer;display:flex;align-items:center;gap:.5rem;
   box-shadow:var(--shadow)}
-.chip .dot{width:8px;height:8px;border-radius:50%;background:var(--ink-soft)}
-.chip[aria-pressed="true"]{border-color:var(--blue);background:var(--paper-2);color:var(--blue)}
-.chip.off{opacity:.5}
-.chip.off .dot{background:var(--rule)!important}
-.chip.tog[aria-pressed="true"]{background:var(--ink-soft);border-color:var(--ink-soft);color:#fff;opacity:1}
+.filterbtn .chev{width:16px;height:16px;stroke:var(--ink-soft);fill:none;stroke-width:2;
+  stroke-linecap:round;stroke-linejoin:round;transition:transform .15s}
+.filterbtn[aria-expanded="true"] .chev{transform:rotate(180deg)}
+.filtermenu{display:none;position:absolute;left:0;top:calc(100% + .4rem);z-index:40;
+  min-width:230px;max-height:60vh;overflow-y:auto;background:var(--paper-2);
+  border:1px solid var(--rule);border-radius:16px;box-shadow:var(--shadow-card);padding:.4rem}
+.filtermenu.open{display:block}
+.filmitem{width:100%;font-family:var(--sans);font-weight:500;font-size:.85rem;
+  background:transparent;border:0;box-shadow:none;border-radius:10px;color:var(--ink);
+  padding:.55rem .6rem;display:flex;align-items:center;gap:.55rem;cursor:pointer;text-align:left}
+.filmitem:hover{background:var(--paper);color:var(--ink)}
+.filmitem .dot{width:9px;height:9px;border-radius:50%;background:var(--ink-soft);flex:0 0 auto}
+.filmitem span.flabel{flex:1}
+.filmitem .fcheck{width:18px;height:18px;flex:0 0 auto;border-radius:5px;border:1.5px solid var(--rule);
+  display:flex;align-items:center;justify-content:center}
+.filmitem .fcheck svg{width:12px;height:12px;stroke:#fff;fill:none;stroke-width:3;
+  stroke-linecap:round;stroke-linejoin:round;opacity:0}
+.filmitem.on .fcheck{background:var(--blue);border-color:var(--blue)}
+.filmitem.on .fcheck svg{opacity:1}
+.filmitem.off .dot{background:var(--rule)!important}
+.filmdivider{height:1px;background:var(--rule);margin:.35rem .3rem}
 .starbtn{background:transparent;border:0;box-shadow:none;padding:.1rem .2rem;
   font-size:1.05rem;line-height:1;color:var(--ink-soft);cursor:pointer}
 .starbtn:hover{background:transparent;color:var(--ochre)}
@@ -314,7 +327,13 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
 
 <div class="wrap">
 
-  <div class="chips" id="chips"></div>
+  <div class="sectorfilter" id="sectorFilter">
+    <button class="filterbtn" id="sfBtn" aria-haspopup="true" aria-expanded="false">
+      <span id="sfLabel">All sectors</span>
+      <svg class="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"></path></svg>
+    </button>
+    <div class="filtermenu" id="sfMenu"></div>
+  </div>
 
   <section id="viewMap">
     <div class="mapwrap" id="treemap"></div>
@@ -831,24 +850,49 @@ async function fetchAllFinancials(){
     (failed.length > 12 ? " and " + (failed.length - 12) + " more" : ""), "bad");
 }
 
-/* ===================== chips + tabs ===================== */
+/* ===================== sector filter + tabs ===================== */
+var checkSVG = '<svg viewBox="0 0 24 24"><path d="M5 13l4 4 10-10"></path></svg>';
+
 function renderChips(){
-  var host = document.getElementById("chips");
   var counts = {};
   data.forEach(function(c){ counts[c.sector] = (counts[c.sector] || 0) + 1; });
-  var html = '<button class="chip" data-all="1" aria-pressed="' + (!cfg.hidden.length) + '">All</button>';
-  SECTORS.forEach(function(s){
-    if (!counts[s]) return;
-    if (BLOCKED[s] && !cfg.showEx) return;
+  var present = SECTORS.filter(function(s){ return counts[s] && (!BLOCKED[s] || cfg.showEx); });
+  var visibleCount = present.filter(function(s){ return cfg.hidden.indexOf(s) < 0; }).length;
+
+  var label;
+  if (!cfg.hidden.length) label = "All sectors";
+  else if (visibleCount === 0) label = "No sectors";
+  else if (visibleCount === 1){
+    var only = present.filter(function(s){ return cfg.hidden.indexOf(s) < 0; })[0];
+    label = SHORTSEC[only] || only;
+  } else label = visibleCount + " of " + present.length + " sectors";
+  document.getElementById("sfLabel").textContent = label;
+
+  var html = '<button class="filmitem' + (!cfg.hidden.length ? ' on' : '') + '" data-all="1">' +
+    '<span class="fcheck">' + checkSVG + '</span><span class="flabel">All sectors</span></button>' +
+    '<div class="filmdivider"></div>';
+  present.forEach(function(s){
     var on = cfg.hidden.indexOf(s) < 0;
-    html += '<button class="chip' + (on ? '' : ' off') + '" data-sec="' + esc(s) +
-      '" aria-pressed="false">' +
-      '<span class="dot" style="background:' + SECCOL[s] + '"></span>' + esc(SHORTSEC[s]) + '</button>';
+    html += '<button class="filmitem' + (on ? ' on' : ' off') + '" data-sec="' + esc(s) + '">' +
+      '<span class="fcheck">' + checkSVG + '</span>' +
+      '<span class="dot" style="background:' + SECCOL[s] + '"></span>' +
+      '<span class="flabel">' + esc(SHORTSEC[s]) + '</span></button>';
   });
-  html += '<button class="chip tog" id="chipEx" aria-pressed="' + cfg.showEx + '">Banks &amp; REITs</button>';
-  host.innerHTML = html;
+  html += '<div class="filmdivider"></div>' +
+    '<button class="filmitem' + (cfg.showEx ? ' on' : '') + '" id="chipEx">' +
+    '<span class="fcheck">' + checkSVG + '</span><span class="flabel">Banks &amp; REITs</span></button>';
+  document.getElementById("sfMenu").innerHTML = html;
 }
-document.getElementById("chips").addEventListener("click", function(e){
+
+function setFilterOpen(open){
+  document.getElementById("sfMenu").classList.toggle("open", open);
+  document.getElementById("sfBtn").setAttribute("aria-expanded", open);
+}
+document.getElementById("sfBtn").addEventListener("click", function(e){
+  e.stopPropagation();
+  setFilterOpen(!document.getElementById("sfMenu").classList.contains("open"));
+});
+document.getElementById("sfMenu").addEventListener("click", function(e){
   var b = e.target.closest("button"); if (!b) return;
   if (b.id === "chipEx"){
     cfg.showEx = !cfg.showEx;
@@ -859,6 +903,9 @@ document.getElementById("chips").addEventListener("click", function(e){
   var s = b.dataset.sec, i = cfg.hidden.indexOf(s);
   if (i >= 0) cfg.hidden.splice(i, 1); else cfg.hidden.push(s);
   saveCfg(); paint();
+});
+document.addEventListener("click", function(e){
+  if (!e.target.closest("#sectorFilter")) setFilterOpen(false);
 });
 
 function setTab(t){
