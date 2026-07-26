@@ -348,6 +348,24 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
 .compare-table td.rich{color:var(--oxide)}
 .compare-table .flag{font-size:.6rem;margin:.1rem}
 
+/* ---------- sector stats ---------- */
+.sectorstat-row{width:100%;background:transparent;border:0;box-shadow:none;text-align:left;
+  padding:.9rem 0;border-bottom:1px solid var(--rule);border-radius:0;cursor:pointer;display:block}
+.sectorstat-row:last-child{border-bottom:0}
+.sectorstat-row:hover{background:var(--paper)}
+.sectorstat-head{display:flex;align-items:center;gap:.5rem}
+.sectorstat-head .dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto}
+.sectorstat-name{font-family:var(--serif);font-weight:700;font-size:.95rem;flex:1;color:var(--ink)}
+.sectorstat-count{font-size:.72rem;color:var(--ink-soft);font-variant-numeric:tabular-nums}
+.sectorstat-metrics{display:flex;justify-content:space-between;gap:.6rem;margin-top:.55rem;
+  font-size:.85rem;font-variant-numeric:tabular-nums}
+.sectorstat-metrics>div{display:flex;flex-direction:column;gap:.15rem}
+.sectorstat-metrics b{color:var(--ink);font-weight:700}
+.sectorstat-metrics .cap{font-family:var(--cond);font-size:.62rem;letter-spacing:.05em;
+  text-transform:uppercase;color:var(--ink-soft)}
+.sectorstat-bar{height:6px;background:var(--rule);border-radius:99px;margin-top:.6rem;overflow:hidden}
+.sectorstat-fill{height:100%;background:var(--green)}
+
 /* ---------- bottom nav + FAB ---------- */
 .navbar{position:fixed;left:0;right:0;bottom:0;z-index:70;display:flex;
   background:var(--paper-2);border-top:1px solid var(--rule);
@@ -440,6 +458,7 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
     <button id="btnFetchAll">Fetch all financials</button>
     <button id="btnStarter">Load ASX names</button>
     <button id="btnCompare">Compare companies</button>
+    <button id="btnSectorStats">Sector stats</button>
     <button id="btnImport">Import CSV</button>
     <button id="btnExport">Export CSV</button>
     <button class="ghost" id="btnClear">Clear all</button>
@@ -552,6 +571,14 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
       <button class="mini ghost" id="btnCompareBack">Edit selection</button></div>
     <div class="compare-scroll"><div id="compareTable"></div></div>
   </div>
+</div>
+
+<div class="sheet-backdrop" id="statsBackdrop"></div>
+<div class="sheet" id="statsSheet">
+  <div class="sheet-handle"></div>
+  <h2>Sector stats</h2>
+  <p class="hint" style="margin:-.6rem 0 .8rem">Tap a sector to filter the List down to just it. Banks, insurers and REITs never rank so aren't shown here.</p>
+  <div id="sectorStatsList"></div>
 </div>
 
 <div class="toast" id="toast"><span id="toastTxt"></span></div>
@@ -1265,6 +1292,75 @@ document.getElementById("btnCompareGo").addEventListener("click", function(){
 document.getElementById("btnCompareBack").addEventListener("click", function(){
   document.getElementById("comparePicker").style.display = "";
   document.getElementById("compareResult").style.display = "none";
+});
+
+/* ---------- sector stats ---------- */
+function sectorStatsData(){
+  var scored = scoreAll();
+  var bySector = {};
+  scored.forEach(function(s){
+    if (BLOCKED[s.c.sector]) return;
+    (bySector[s.c.sector] = bySector[s.c.sector] || []).push(s);
+  });
+  return SECTORS.filter(function(sec){ return bySector[sec] && bySector[sec].length; }).map(function(sec){
+    var list = bySector[sec];
+    var ranked = list.filter(function(s){ return s.m != null; }).sort(function(a,b){ return a.m - b.m; });
+    var inZone = ranked.filter(function(s){ return s.m < ZONE_MAX; }).length;
+    return {
+      sector: sec,
+      total: list.length,
+      ranked: ranked.length,
+      median: ranked.length ? ranked[Math.floor((ranked.length-1)/2)].m : null,
+      inZonePct: ranked.length ? (inZone / ranked.length * 100) : 0,
+      cheapest: ranked[0] || null
+    };
+  }).sort(function(a,b){
+    if (a.median == null && b.median == null) return 0;
+    if (a.median == null) return 1;
+    if (b.median == null) return -1;
+    return a.median - b.median;
+  });
+}
+function sectorStatsHTML(){
+  var rows = sectorStatsData();
+  if (!rows.length) return '<p class="hint">Add some companies with financials to see sector stats.</p>';
+  return rows.map(function(r){
+    var col = SECCOL[r.sector] || "#666";
+    return '<button class="sectorstat-row" data-sector="' + esc(r.sector) + '">' +
+      '<div class="sectorstat-head"><span class="dot" style="background:' + col + '"></span>' +
+      '<span class="sectorstat-name">' + esc(SHORTSEC[r.sector] || r.sector) + '</span>' +
+      '<span class="sectorstat-count">' + r.total + (r.total === 1 ? " name" : " names") + '</span></div>' +
+      '<div class="sectorstat-metrics">' +
+        '<div><span class="cap">Median</span><b>' + (r.median == null ? "—" : fmtX(r.median)) + '</b></div>' +
+        '<div><span class="cap">Cheapest</span><b>' + (r.cheapest ? esc(r.cheapest.c.tkr) + " " + fmtX(r.cheapest.m) : "—") + '</b></div>' +
+        '<div><span class="cap">Value zone</span><b>' + Math.round(r.inZonePct) + '%</b></div>' +
+      '</div>' +
+      '<div class="sectorstat-bar"><div class="sectorstat-fill" style="width:' + r.inZonePct.toFixed(0) + '%;background:' + col + '"></div></div>' +
+    '</button>';
+  }).join("");
+}
+function openStats(){
+  document.getElementById("sectorStatsList").innerHTML = sectorStatsHTML();
+  document.getElementById("statsSheet").classList.add("open");
+  document.getElementById("statsBackdrop").classList.add("open");
+}
+function closeStats(){
+  document.getElementById("statsSheet").classList.remove("open");
+  document.getElementById("statsBackdrop").classList.remove("open");
+}
+document.getElementById("btnSectorStats").addEventListener("click", function(){
+  closeSheet();
+  openStats();
+});
+document.getElementById("statsBackdrop").addEventListener("click", closeStats);
+document.getElementById("sectorStatsList").addEventListener("click", function(e){
+  var row = e.target.closest(".sectorstat-row"); if (!row) return;
+  var sec = row.dataset.sector;
+  var present = SECTORS.filter(function(s){ return data.some(function(c){ return c.sector === s; }); });
+  cfg.hidden = present.filter(function(s){ return s !== sec; });
+  saveCfg();
+  closeStats();
+  setTab("list");
 });
 
 /* ---------- hero chart animation ---------- */
