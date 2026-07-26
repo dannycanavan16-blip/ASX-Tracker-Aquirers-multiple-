@@ -1,0 +1,164 @@
+/**
+ * LOGO ADDON — paste into your existing Apps Script project
+ * (the same project behind your /exec proxy URL used for fn=quote / fn=fundamentals)
+ *
+ * WHAT THIS DOES
+ * The app already calls your script with ?fn=fundamentals&ticker=BHP.AX and reads back
+ * fields like ebit, revenue, price, etc. This addon makes that same response also carry
+ * a `logo` field: a real company logo URL, resolved server-side instead of guessed by the
+ * browser. The client (index.html) already knows how to read `res.logo` if it's present —
+ * you only need to add it to what your script returns.
+ *
+ * HOW TO INSTALL
+ * 1. Open your project at script.google.com (the one you deployed as your proxy).
+ * 2. Add a new script file (or paste at the bottom of an existing one) containing
+ *    everything below this comment block.
+ * 3. Find the function in your project that builds the response object for fn=fundamentals
+ *    (it's the one that sets fields like `response.price`, `response.currency`, etc. — the
+ *    exact name varies by how you wrote it originally). Add one line right before it returns
+ *    that response:
+ *
+ *        response.logo = resolveLogo(ticker);
+ *
+ *    (`ticker` here should be the same ticker string you were given in the request, e.g.
+ *    "BHP.AX" — resolveLogo() strips the exchange suffix itself.)
+ * 4. Deploy → Manage deployments → Edit → New version → Deploy (same as when you first set
+ *    this up). No new URL is needed, no new fn= endpoint — fundamentals responses just gain
+ *    a `logo` field from now on.
+ *
+ * HOW LOGOS ARE RESOLVED
+ * - The curated TICKER_DOMAINS map below (covers every company in the app's built-in
+ *   "Load ASX names" starter list) resolves a ticker to that company's real website domain,
+ *   then fetches its favicon via Google's public favicon service (google.com/s2/favicons) —
+ *   the same service already used client-side elsewhere in this app, chosen because it's far
+ *   more reliably reachable than Clearbit's logo API (which has become DNS-unreachable on
+ *   some networks since Clearbit's acquisition by HubSpot).
+ * - For any ticker not in the map (custom companies you've added by hand), no logo is
+ *   returned — the client falls back to the manual Website field, then a colored-initials
+ *   avatar. Add the ticker to TICKER_DOMAINS below any time you want a real logo for a
+ *   company outside the starter list.
+ *
+ * A few domains below are best-effort (smaller/less well-known companies) — if one turns out
+ * wrong, just fix the string on that line and redeploy; no other code changes needed.
+ */
+
+var TICKER_DOMAINS = {
+  // Materials
+  BHP:"bhp.com", RIO:"riotinto.com", FMG:"fortescue.com", S32:"south32.net",
+  NST:"nsrltd.com", EVN:"evolutionmining.com.au", MIN:"mineralresources.com.au",
+  ORI:"orica.com", IGO:"igo.com.au", PLS:"pilbaraminerals.com.au",
+  LYC:"lynasrareearths.com", ILU:"iluka.com", DRR:"deterra.com.au",
+  SFR:"sandfire.com.au", BSL:"bluescope.com", SGM:"simsmm.com",
+  ORA:"ororagroup.com", CIA:"championiron.com", NIC:"nickelindustries.com",
+  LTR:"liontownresources.com.au", RRL:"regisresources.com.au", RMS:"rameliusresources.com.au",
+  PRU:"perseusmining.com", CMM:"capmet.com.au", WGX:"westgold.com.au",
+  BGL:"bellevuegold.com.au", GMD:"genesisminerals.com.au", VAU:"vaultminerals.com",
+  WAF:"westafricanresources.com", EMR:"emeraldresources.com.au", OBM:"orabandamining.com.au",
+  ALK:"alkane.com.au", MGX:"mtgibsoniron.com.au", GRR:"grangeresources.com.au",
+  DVP:"developglobal.com", CHN:"chalicemining.com", NUF:"nufarm.com",
+  RSG:"resolutemining.com", DNL:"dynonobel.com", GWA:"gwagroup.com.au",
+  MGH:"maasgroup.com.au",
+
+  // Energy
+  WDS:"woodside.com", STO:"santos.com", WHC:"whitehavencoal.com.au",
+  NHC:"newhopegroup.com.au", BPT:"beachenergy.com.au", YAL:"yancoal.com.au",
+  ALD:"ampol.com.au", VEA:"vivaenergy.com.au", KAR:"karoonenergy.com.au",
+  WOR:"worley.com", PDN:"paladinenergy.com.au", BOE:"bossenergy.com",
+  DYL:"deepyellow.com.au", SMR:"stanmoreresources.com", CRN:"coronadoglobalresources.com",
+  COE:"cooperenergy.com.au",
+
+  // Consumer Discretionary
+  WES:"wesfarmers.com.au", JBH:"jbhifi.com.au", HVN:"harveynorman.com.au",
+  ALL:"aristocratgaming.com", SUL:"superretailgroup.com", NCK:"nickscali.com.au",
+  PMV:"premierinvestments.com.au", LOV:"lovisa.com.au", APE:"eagersautomotive.com.au",
+  ARB:"arb.com.au", BRG:"breville.com", DMP:"dominos.com.au",
+  FLT:"flightcentre.com", CTD:"travelctm.com", WEB:"webtravelgroup.com.au",
+  TLC:"lotterycorporation.com", TAH:"tabcorp.com.au", SGR:"starentertainmentgroup.com.au",
+  AX1:"accentgr.com.au", BAP:"bapcor.com.au", AOV:"amotiv.com.au",
+  TPW:"templeandwebster.com.au", IEL:"idp.com", CKF:"collinsfoods.com",
+  GYG:"guzmanygomez.com.au", UNI:"universalstore.com", MYR:"myer.com.au",
+  BBN:"babybunting.com.au", PWH:"pwrholdings.com", JIN:"jumbointeractive.com",
+  FWD:"fleetwood.com.au",
+
+  // Consumer Staples
+  WOW:"woolworthsgroup.com.au", COL:"colesgroup.com.au", EDV:"endeavourgroup.com.au",
+  MTS:"metcash.com", TWE:"tweglobal.com", BGA:"bega.com.au",
+  ING:"inghams.com.au", ELD:"elders.com.au", GNC:"graincorp.com.au",
+  RIC:"ridley.com.au", SHV:"selectharvests.com.au", AAC:"aaco.com.au",
+
+  // Health Care
+  CSL:"csl.com", COH:"cochlear.com", SHL:"sonichealthcare.com",
+  RHC:"ramsayhealth.com", PME:"promedicus.com.au", TLX:"telixpharma.com",
+  ANN:"ansell.com", NEU:"neurenpharma.com", SIG:"sigmahealthcare.com.au",
+  NAN:"nanosonics.com", HLS:"healius.com.au", CUV:"clinuvel.com",
+  IDX:"integraldiagnostics.com.au", MVF:"monashivf.com", ACL:"clinicallabs.com.au",
+  PNV:"polynovo.com", MSB:"mesoblast.com",
+
+  // Industrials
+  QAN:"qantas.com", BXB:"brambles.com", ALQ:"alsglobal.com",
+  REH:"reece.com.au", DOW:"downergroup.com", MND:"monadelphous.com.au",
+  SVW:"sevengroup.com.au", TCL:"transurban.com", CPU:"computershare.com",
+  CWY:"cleanaway.com.au", AZJ:"aurizon.com.au", QUB:"qube.com.au",
+  VNT:"ventia.com", IPH:"iphltd.com.au", ALX:"atlasarteria.com",
+  NWH:"nrw.com.au", MAH:"macmahon.com.au", PRN:"perentiglobal.com",
+  EHL:"emecoholdings.com.au", RWC:"rwc.com", SSM:"servicestream.com.au",
+  LYL:"lycopodium.com", GNG:"gre.com.au", ANG:"austineng.com.au",
+  DUR:"duratec.com.au", ASB:"austal.com", SXE:"scee.com.au",
+  SRG:"srgglobal.com.au", KLS:"kelsian.com", SIQ:"smartgroup.com.au",
+  MMS:"mmsg.com.au", JLG:"johnslyng.com.au", DBI:"dbi.net.au",
+
+  // Communication Services
+  TLS:"telstra.com.au", REA:"rea-group.com", CAR:"carexpertgroup.com",
+  SEK:"seek.com.au", TPG:"tpgtelecom.com.au", NEC:"nine.com.au",
+  EVT:"evt.com", SXL:"southerncrossaustereo.com.au", OML:"oohmedia.com.au",
+  SWM:"sevenwestmedia.com.au", ABB:"aussiebroadband.com.au", SLC:"superloop.com",
+  MAQ:"macquarietelecom.com",
+
+  // Information Technology
+  WTC:"wisetechglobal.com", TNE:"technologyonecorp.com", NXT:"nextdc.com",
+  IRE:"iress.com", MP1:"megaport.com", CDA:"codan.com.au",
+  DTL:"data3.com", SDR:"siteminder.com", TYR:"tyro.com",
+  HSN:"hansencx.com", OCL:"objective.com", NXL:"nuix.com",
+  DDR:"dickerdata.com.au", BVS:"bravurasolutions.com", CAT:"catapultsports.com",
+  RUL:"rpmglobal.com",
+
+  // Utilities
+  ORG:"originenergy.com.au", AGL:"agl.com.au", APA:"apa.com.au",
+
+  // Financials
+  CBA:"commbank.com.au", WBC:"westpac.com.au", NAB:"nab.com.au",
+  ANZ:"anz.com", MQG:"macquarie.com", QBE:"qbe.com",
+  SUN:"suncorpgroup.com.au", IAG:"iag.com.au", ASX:"asx.com.au",
+  BOQ:"boq.com.au", BEN:"bendigoadelaide.com.au", JDO:"judo.bank",
+  MPL:"medibank.com.au", NHF:"nib.com.au", SDF:"steadfast.com.au",
+  AUB:"aubgroup.com.au", PNI:"pinnacleinvestment.com", GQG:"gqgpartners.com",
+  PPT:"perpetual.com.au", CGF:"challenger.com.au", HUB:"hub24.com.au",
+  NWL:"netwealth.com.au", ZIP:"zip.co", AMP:"amp.com.au",
+  MFG:"magellangroup.com.au",
+
+  // Real Estate (REIT)
+  GMG:"goodman.com", SCG:"scentregroup.com", SGP:"stockland.com.au",
+  MGR:"mirvac.com", DXS:"dexus.com", VCX:"vicinity.com.au",
+  GPT:"gpt.com.au", CHC:"charterhall.com.au", CLW:"charterhall.com.au",
+  CQR:"charterhall.com.au", NSR:"nationalstorage.com.au", HMC:"hmccapital.com.au",
+  LLC:"lendlease.com"
+};
+
+/**
+ * Resolves a ticker (e.g. "BHP.AX" or "BHP") to a logo image URL.
+ * Uses the curated domain map, then fetches that company's own site favicon via
+ * Google's public favicon service (the same one used elsewhere in this app — reliably
+ * reachable, unlike Clearbit's logo API which has become unreachable/DNS-dead for some
+ * networks since Clearbit's acquisition by HubSpot).
+ */
+function resolveLogo(ticker){
+  if (!ticker) return null;
+  var t = String(ticker).toUpperCase().replace(/\.AX$/, "").trim();
+  var domain = TICKER_DOMAINS[t];
+  if (domain){
+    return "https://www.google.com/s2/favicons?sz=128&domain=" + encodeURIComponent(domain);
+  }
+  // Not in the curated map — no reliable domain to go on, so return nothing rather than
+  // guess wildly (the client falls back to the manual Website field / initials avatar).
+  return null;
+}
