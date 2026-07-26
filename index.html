@@ -278,6 +278,11 @@ textarea{min-height:110px;font-size:.78rem;line-height:1.35;resize:vertical}
 .portfolio-sub{font-size:.85rem;font-weight:600;margin-top:.3rem;font-variant-numeric:tabular-nums}
 .portfolio-sub.cheap{color:var(--green)}
 .portfolio-sub.rich{color:var(--oxide)}
+.spark{display:block;margin-top:.35rem;margin-left:auto;width:56px;height:18px}
+.spark-wrap{margin-top:.4rem}
+.spark-wrap svg{width:100%;height:64px;display:block}
+.spark-range{display:flex;justify-content:space-between;font-size:.72rem;color:var(--ink-soft);
+  margin-top:.3rem;font-variant-numeric:tabular-nums}
 .pastebox{display:none;margin-top:.5rem}
 .pastebox.open{display:block}
 .alert{border-left:3px solid var(--oxide);background:var(--oxide-wash);border-radius:0 10px 10px 0;
@@ -569,7 +574,7 @@ function num(v){ var n = parseFloat(v); return isFinite(n) ? n : 0; }
 
 function blank(){
   return { id:uid(), tkr:"", co:"", sector:"Materials", mode:"topdown", fav:false, website:"",
-           logoUrl:"", lots:[], prevClose:"",
+           logoUrl:"", lots:[], prevClose:"", history:[],
            price:"", shares:"", mcapDirect:"",
            stDebt:"", ltDebt:"", pref:"", minority:"", cash:"",
            ebit:"", oneoffs:"", revenue:"", cogs:"", sga:"", da:"",
@@ -654,6 +659,53 @@ function fmtM(v){
   return "$" + v.toFixed(a >= 100 ? 0 : 1) + "m";
 }
 function fmtX(m){ return m.toFixed(m < 10 ? 2 : 1) + "×"; }
+
+/* ===================== history / sparkline ===================== */
+var HISTORY_CAP = 180;
+function snapshotMultiple(c){
+  var m = multiple(c);
+  if (m == null) return;
+  if (!c.history) c.history = [];
+  var today = new Date().toISOString().slice(0,10);
+  var last = c.history[c.history.length - 1];
+  if (last && last.d === today) last.m = m;
+  else {
+    c.history.push({ d: today, m: m });
+    if (c.history.length > HISTORY_CAP) c.history.shift();
+  }
+}
+function sparklineSVG(history, w, h){
+  var hist = (history || []).slice(-60);
+  if (hist.length < 2) return "";
+  var vals = hist.map(function(p){ return p.m; });
+  var min = Math.min.apply(null, vals), max = Math.max.apply(null, vals);
+  var range = (max - min) || 1;
+  var pts = hist.map(function(p, i){
+    var x = (i / (hist.length - 1)) * w;
+    var y = h - ((p.m - min) / range) * h;
+    return x.toFixed(1) + "," + y.toFixed(1);
+  }).join(" ");
+  var trendDown = vals[vals.length - 1] <= vals[0];
+  var col = trendDown ? "var(--green)" : "var(--oxide)";
+  return '<svg class="spark" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="none">' +
+    '<polyline points="' + pts + '" fill="none" stroke="' + col +
+    '" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+}
+function historyFieldsetHTML(c){
+  var hist = c.history || [];
+  if (hist.length < 2){
+    return '<div class="fieldset"><div class="fs-title"><span>History</span></div>' +
+      '<p class="hint">Come back after a price refresh on a different day to start seeing a trend here.</p></div>';
+  }
+  var vals = hist.map(function(p){ return p.m; });
+  var min = Math.min.apply(null, vals), max = Math.max.apply(null, vals);
+  return '<div class="fieldset"><div class="fs-title"><span>History</span>' +
+    '<span style="font-family:var(--mono);font-weight:400;letter-spacing:0;text-transform:none">' +
+    hist.length + ' points since ' + hist[0].d + '</span></div>' +
+    '<div class="spark-wrap">' + sparklineSVG(hist, 280, 64) + '</div>' +
+    '<div class="spark-range tnum"><span>Cheapest ' + fmtX(min) + '</span><span>Richest ' + fmtX(max) + '</span></div>' +
+  '</div>';
+}
 function ago(ts){
   if (!ts) return "";
   var s = (Date.now() - ts) / 1000;
@@ -804,6 +856,7 @@ async function refreshPrices(silent){
         if (!c.co && q.name) c.co = q.name;
         if (q.previousClose != null) c.prevClose = String(q.previousClose);
         c.updated = Date.now();
+        snapshotMultiple(c);
         got++;
       });
     }
@@ -837,6 +890,7 @@ async function pullOne(c){
   if (f.mcapDirect != null) c.mcapDirect = "";
   if (res.logo) c.logoUrl = res.logo;
   c.finUpdated = Date.now();
+  snapshotMultiple(c);
   return n;
 }
 
@@ -1493,6 +1547,8 @@ function editorHTML(c){
         '<p class="hint">Most ASX companies report expenses by nature, so these lines often do not exist. Top-down is usually the way.</p>') +
   '</div>' +
 
+  historyFieldsetHTML(c) +
+
   portfolioFieldsetHTML(c) +
 
   researchHTML(c) +
@@ -1541,6 +1597,7 @@ function rowHTML(c, rank, a, m){
         '<span class="pdot" style="background:' + (multCls === "cheap" ? "var(--green)" : multCls === "rich" ? "var(--oxide)" : "var(--ink-soft)") + '"></span>' +
         '<span class="mult tnum ' + multCls + '">' + multTxt + '</span></div>' +
       (subTxt ? '<div class="mult-sub ' + multCls + '">' + subTxt + '</div>' : '') +
+      sparklineSVG(c.history, 56, 18) +
     '</div>' +
   '</div>' + editorHTML(c) + '</div>';
 }
