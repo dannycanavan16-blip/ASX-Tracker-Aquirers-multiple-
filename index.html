@@ -309,15 +309,44 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
   box-shadow:none;font-size:.7rem;padding:.3rem .6rem}
 
 /* ---------- sheet (More) ---------- */
-.sheet-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:60}
+.sheet-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:71}
 .sheet-backdrop.open{display:block}
-.sheet{display:none;position:fixed;left:0;right:0;bottom:0;z-index:61;
+.sheet{display:none;position:fixed;left:0;right:0;bottom:0;z-index:72;
   background:var(--paper);border-radius:22px 22px 0 0;box-shadow:0 -8px 30px rgba(0,0,0,.2);
   max-height:88vh;overflow-y:auto;padding:.6rem 1.1rem calc(1.4rem + env(safe-area-inset-bottom))}
 .sheet.open{display:block}
 .sheet-handle{width:36px;height:4px;border-radius:99px;background:var(--rule);margin:.5rem auto 1rem}
 .sheet h2{font-family:var(--serif);font-size:1.2rem;font-weight:700;margin:0 0 1rem}
 .sheet-actions{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:1.2rem}
+
+/* ---------- compare ---------- */
+.pickrow{width:100%;font-family:var(--sans);font-weight:500;font-size:.85rem;
+  background:transparent;border:0;box-shadow:none;border-radius:10px;color:var(--ink);
+  padding:.5rem .5rem;display:flex;align-items:center;gap:.6rem;cursor:pointer;text-align:left}
+.pickrow:hover{background:var(--paper)}
+.pickrow.on{background:var(--green-wash)}
+.pickrow.on .fcheck{background:var(--blue);border-color:var(--blue)}
+.pickrow.on .fcheck svg{opacity:1}
+.pickrow[disabled]{opacity:.4;cursor:default}
+.pickrow[disabled]:hover{background:transparent}
+.pickrow .avatar{width:2rem;height:2rem;flex:0 0 auto}
+.picklabel{overflow:hidden;text-overflow:ellipsis;white-space:nowrap;color:var(--ink-soft)}
+.picklabel b{color:var(--ink);margin-right:.3rem}
+.compare-scroll{overflow-x:auto;-webkit-overflow-scrolling:touch;margin:0 -1.1rem;padding:0 1.1rem}
+.compare-table{border-collapse:collapse;width:100%;min-width:460px}
+.compare-table th,.compare-table td{padding:.55rem .7rem;border-bottom:1px solid var(--rule);
+  text-align:center;font-size:.8rem;white-space:nowrap;font-variant-numeric:tabular-nums}
+.compare-table thead th{background:var(--paper-2);font-weight:600}
+.compare-table th:first-child,.compare-table td.cmp-label{position:sticky;left:0;
+  background:var(--paper-2);text-align:left;font-weight:600;color:var(--ink-soft);
+  z-index:2;min-width:130px}
+.compare-table thead th:first-child{z-index:3}
+.compare-table .cmp-avatar{display:flex;flex-direction:column;align-items:center;gap:.3rem}
+.compare-table .cmp-tkr{font-weight:700;font-size:.85rem;color:var(--ink)}
+.compare-table tr.cmp-highlight td{font-weight:700;font-size:.95rem}
+.compare-table td.cheap{color:var(--green)}
+.compare-table td.rich{color:var(--oxide)}
+.compare-table .flag{font-size:.6rem;margin:.1rem}
 
 /* ---------- bottom nav + FAB ---------- */
 .navbar{position:fixed;left:0;right:0;bottom:0;z-index:70;display:flex;
@@ -410,6 +439,7 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
     <button id="btnRefresh">Refresh prices</button>
     <button id="btnFetchAll">Fetch all financials</button>
     <button id="btnStarter">Load ASX names</button>
+    <button id="btnCompare">Compare companies</button>
     <button id="btnImport">Import CSV</button>
     <button id="btnExport">Export CSV</button>
     <button class="ghost" id="btnClear">Clear all</button>
@@ -504,6 +534,24 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
     <p>Cheap multiples cluster around businesses in trouble. This ranking tells you where to start reading, and that is all it is for. Carlisle's own approach was a basket of thirty-odd rebalanced annually, not a bet on the cheapest name.</p>
     <p style="margin-top:1rem;font-style:italic">Nothing here is financial advice — it is arithmetic, and the arithmetic is only as good as the figures you feed it. Verify against the actual filing before you act.</p>
   </details>
+</div>
+
+<div class="sheet-backdrop" id="compareBackdrop"></div>
+<div class="sheet" id="compareSheet">
+  <div class="sheet-handle"></div>
+  <div id="comparePicker">
+    <h2>Compare companies</h2>
+    <div class="searchrow"><input id="compareSearch" type="search" placeholder="Search ticker or name" autocomplete="off"></div>
+    <div id="comparePickList"></div>
+    <div class="ed-actions" style="margin-top:1rem">
+      <button class="primary" id="btnCompareGo" disabled>Compare selected</button>
+    </div>
+  </div>
+  <div id="compareResult" style="display:none">
+    <div class="fs-title" style="margin-bottom:.8rem"><span>Comparison</span>
+      <button class="mini ghost" id="btnCompareBack">Edit selection</button></div>
+    <div class="compare-scroll"><div id="compareTable"></div></div>
+  </div>
 </div>
 
 <div class="toast" id="toast"><span id="toastTxt"></span></div>
@@ -1115,6 +1163,109 @@ function closeSheet(){
   document.getElementById("sheetBackdrop").classList.remove("open");
 }
 document.getElementById("sheetBackdrop").addEventListener("click", closeSheet);
+
+/* ---------- compare ---------- */
+var COMPARE_MAX = 3;
+var compareSelected = [];
+var COMPARE_ROWS = [
+  ["Sector", function(c){ return esc(SHORTSEC[c.sector] || c.sector); }],
+  ["Price", function(c){ return c.price ? "$" + num(c.price).toFixed(2) : "—"; }],
+  ["Market cap", function(c){ return mcap(c) > 0 ? fmtM(mcap(c)) : "—"; }],
+  ["Enterprise value", function(c){ return fmtM(ev(c)); }],
+  ["Operating earnings", function(c){ return fmtM(opEarn(c)); }],
+  ["Net debt", function(c){
+    var oe = opEarn(c), nd = netDebt(c);
+    if (!oe) return fmtM(nd);
+    return (nd < 0 ? "net cash" : (nd/oe).toFixed(1) + "× earnings");
+  }]
+];
+
+function openCompare(){
+  compareSelected = [];
+  document.getElementById("comparePicker").style.display = "";
+  document.getElementById("compareResult").style.display = "none";
+  document.getElementById("compareSearch").value = "";
+  renderComparePicker();
+  document.getElementById("compareSheet").classList.add("open");
+  document.getElementById("compareBackdrop").classList.add("open");
+}
+function closeCompare(){
+  document.getElementById("compareSheet").classList.remove("open");
+  document.getElementById("compareBackdrop").classList.remove("open");
+}
+document.getElementById("btnCompare").addEventListener("click", function(){
+  closeSheet();
+  openCompare();
+});
+document.getElementById("compareBackdrop").addEventListener("click", closeCompare);
+
+function renderComparePicker(){
+  var q = (document.getElementById("compareSearch").value || "").trim().toLowerCase();
+  var pool = data.filter(function(c){
+    if (!q) return true;
+    return (c.tkr||"").toLowerCase().indexOf(q) >= 0 || (c.co||"").toLowerCase().indexOf(q) >= 0;
+  });
+  var atMax = compareSelected.length >= COMPARE_MAX;
+  var html = pool.map(function(c){
+    var sel = compareSelected.indexOf(c.id) >= 0;
+    var disabled = atMax && !sel;
+    return '<button class="pickrow' + (sel?' on':'') + '" data-id="' + c.id + '"' + (disabled?' disabled':'') + '>' +
+      '<span class="fcheck">' + checkSVG + '</span>' +
+      avatarHTML(c) +
+      '<span class="picklabel"><b>' + esc(c.tkr || "—") + '</b>' + esc(c.co) + '</span></button>';
+  }).join("");
+  document.getElementById("comparePickList").innerHTML = html ||
+    '<p class="hint">No companies match that search.</p>';
+  document.getElementById("btnCompareGo").disabled = compareSelected.length < 2;
+}
+document.getElementById("compareSearch").addEventListener("input", renderComparePicker);
+document.getElementById("comparePickList").addEventListener("click", function(e){
+  var btn = e.target.closest(".pickrow"); if (!btn || btn.disabled) return;
+  var id = btn.dataset.id;
+  var i = compareSelected.indexOf(id);
+  if (i >= 0) compareSelected.splice(i, 1);
+  else if (compareSelected.length < COMPARE_MAX) compareSelected.push(id);
+  renderComparePicker();
+});
+
+function compareTableHTML(companies){
+  var scored = companies.map(function(c){ var a = assess(c); return { c:c, a:a, m: a.excluded ? null : multiple(c) }; });
+  var html = '<table class="compare-table"><thead><tr><th></th>';
+  scored.forEach(function(s){
+    html += '<th><div class="cmp-avatar">' + avatarHTML(s.c) + '<span class="cmp-tkr">' + esc(s.c.tkr) + '</span></div></th>';
+  });
+  html += '</tr></thead><tbody>';
+  COMPARE_ROWS.forEach(function(row){
+    html += '<tr><td class="cmp-label">' + row[0] + '</td>';
+    scored.forEach(function(s){ html += '<td>' + row[1](s.c) + '</td>'; });
+    html += '</tr>';
+  });
+  html += '<tr class="cmp-highlight"><td class="cmp-label">Acquirer\'s multiple</td>';
+  scored.forEach(function(s){
+    var cls = s.m == null ? "" : (s.m < ZONE_MAX ? "cheap" : (s.m > 14 ? "rich" : ""));
+    html += '<td class="' + cls + '">' + (s.m == null ? "—" : fmtX(s.m)) + '</td>';
+  });
+  html += '</tr><tr><td class="cmp-label">Flags</td>';
+  scored.forEach(function(s){
+    var f = s.a.flags.map(function(fl){ return '<span class="flag ' + fl.k + '">' + esc(fl.t) + '</span>'; }).join("");
+    html += '<td>' + (f || "—") + '</td>';
+  });
+  html += '</tr></tbody></table>';
+  return html;
+}
+document.getElementById("btnCompareGo").addEventListener("click", function(){
+  var companies = compareSelected.map(function(id){
+    return data.filter(function(c){ return c.id === id; })[0];
+  }).filter(Boolean);
+  if (companies.length < 2) return;
+  document.getElementById("compareTable").innerHTML = compareTableHTML(companies);
+  document.getElementById("comparePicker").style.display = "none";
+  document.getElementById("compareResult").style.display = "";
+});
+document.getElementById("btnCompareBack").addEventListener("click", function(){
+  document.getElementById("comparePicker").style.display = "";
+  document.getElementById("compareResult").style.display = "none";
+});
 
 /* ---------- hero chart animation ---------- */
 (function(){
