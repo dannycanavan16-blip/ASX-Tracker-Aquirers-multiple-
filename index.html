@@ -256,11 +256,28 @@ textarea{min-height:110px;font-size:.78rem;line-height:1.35;resize:vertical}
 .seg button{flex:1;font-size:.72rem;padding:.5rem .3rem}
 .seg button[aria-pressed="true"]{background:var(--blue);color:#fff;border-color:var(--blue)}
 .hint{font-size:.75rem;color:var(--ink-soft);margin:.45rem 0 0;font-style:italic}
-.calc{margin-top:.9rem;padding:.8rem 1rem;background:var(--paper);border:1px solid var(--rule);
+.calc,.pf-calc{margin-top:.9rem;padding:.8rem 1rem;background:var(--paper);border:1px solid var(--rule);
   border-radius:14px;font-family:var(--sans);font-size:.84rem}
-.calc div{display:flex;justify-content:space-between;gap:1rem;padding:.15rem 0}
-.calc .tot{border-top:1px solid var(--rule);margin-top:.25rem;padding-top:.35rem;font-weight:700}
+.calc div,.pf-calc div{display:flex;justify-content:space-between;gap:1rem;padding:.15rem 0}
+.calc .tot,.pf-calc .tot{border-top:1px solid var(--rule);margin-top:.25rem;padding-top:.35rem;font-weight:700}
 .ed-actions{display:flex;gap:.4rem;margin-top:.9rem;flex-wrap:wrap}
+.lotlist{border:1px solid var(--rule);border-radius:10px;overflow:hidden;margin-top:.5rem}
+.lotrow{display:grid;grid-template-columns:1fr 1fr 1fr auto;gap:.4rem;align-items:center;
+  padding:.4rem .6rem;font-size:.78rem;border-bottom:1px solid var(--rule);background:var(--paper-2)}
+.lotrow:last-child{border-bottom:0}
+.lotrow.lothead{font-family:var(--cond);font-weight:600;font-size:.63rem;letter-spacing:.05em;
+  text-transform:uppercase;color:var(--ink-soft);background:var(--paper)}
+.lotcell{font-variant-numeric:tabular-nums}
+.lotdel{background:transparent;border:0;box-shadow:none;color:var(--ink-soft);font-size:1.05rem;
+  padding:0;width:auto;height:auto;line-height:1;justify-self:end}
+.lotdel:hover{background:transparent;color:var(--oxide)}
+.portfolio-summary{background:var(--paper-2);border:1px solid var(--rule);border-radius:18px;
+  box-shadow:var(--shadow-card);padding:1.2rem;margin-bottom:1rem;text-align:center}
+.portfolio-total{font-family:var(--serif);font-weight:700;font-size:2rem;color:var(--ink);
+  font-variant-numeric:tabular-nums}
+.portfolio-sub{font-size:.85rem;font-weight:600;margin-top:.3rem;font-variant-numeric:tabular-nums}
+.portfolio-sub.cheap{color:var(--green)}
+.portfolio-sub.rich{color:var(--oxide)}
 .pastebox{display:none;margin-top:.5rem}
 .pastebox.open{display:block}
 .alert{border-left:3px solid var(--oxide);background:var(--oxide-wash);border-radius:0 10px 10px 0;
@@ -353,6 +370,11 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
     <div class="ledger" id="favsledger"></div>
   </section>
 
+  <section id="viewPortfolio" style="display:none">
+    <div class="portfolio-summary" id="portfolioSummary"></div>
+    <div class="ledger" id="portfolioLedger"></div>
+  </section>
+
 </div>
 
 <button class="fab" id="btnAdd" aria-label="Add company">+</button>
@@ -367,6 +389,9 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
   <button class="navitem" data-nav="favs" aria-label="Favourites">
     <svg viewBox="0 0 24 24"><path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.2 1 5.9-5.2-2.8-5.2 2.8 1-5.9-4.3-4.2 5.9-.8z"></path></svg>
     Favourites</button>
+  <button class="navitem" data-nav="portfolio" aria-label="Portfolio">
+    <svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"></rect><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+    Portfolio</button>
   <button class="navitem" data-nav="more" aria-label="More">
     <svg viewBox="0 0 24 24"><circle cx="6" cy="12" r="1.4" fill="currentColor" stroke="none"></circle><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"></circle><circle cx="18" cy="12" r="1.4" fill="currentColor" stroke="none"></circle></svg>
     More</button>
@@ -424,6 +449,10 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
 
     <h3>Real company logos</h3>
     <p>Avatars in the List and Favourites views can show a real company logo instead of a coloured initial. This is resolved by your proxy script, not the browser — see <code>apps-script-logo-addon.gs.txt</code> in the project files for the snippet to paste into your existing script and redeploy. Once installed, logos fill in automatically the next time you fetch prices or financials for a company. The <b>Website</b> field inside a company is a fallback the browser can use on its own for anything the proxy doesn't recognise.</p>
+
+    <h3>Portfolio</h3>
+    <p>Open any company and add a <b>buy lot</b> — date, shares, price paid — under its Portfolio section. Add as many lots as you like for the same company; the app averages your cost across all of them. Once a company has at least one lot, it shows up in the <b>Portfolio</b> tab with its current value and unrealised profit or loss, and the tab's summary totals everything you hold. Nothing here is sent anywhere — it's stored the same way as the rest of your data.</p>
+    <p>The <b>today</b> figures need one more thing from your proxy: <code>previousClose</code> added to the price-quote response. Without it, the app still shows total value and all-time profit/loss, just not the day's move.</p>
 
     <h3>Fetch all financials</h3>
     <p>Works through the whole list one company at a time, roughly 1.3 seconds apart so Yahoo does not throttle you. It saves after every company, so stopping it or losing the page costs you nothing — start it again and it picks up where it left off. It skips banks and REITs, and skips anything already pulled in the last month. Come results season, run it again and it refreshes the lot. Smaller companies often come back empty — Yahoo's coverage thins out down the list. Those are the ones to paste by hand.</p>
@@ -540,7 +569,7 @@ function num(v){ var n = parseFloat(v); return isFinite(n) ? n : 0; }
 
 function blank(){
   return { id:uid(), tkr:"", co:"", sector:"Materials", mode:"topdown", fav:false, website:"",
-           logoUrl:"",
+           logoUrl:"", lots:[], prevClose:"",
            price:"", shares:"", mcapDirect:"",
            stDebt:"", ltDebt:"", pref:"", minority:"", cash:"",
            ebit:"", oneoffs:"", revenue:"", cogs:"", sga:"", da:"",
@@ -582,6 +611,23 @@ function hasFigures(c){ return mcap(c) > 0 || opEarn(c) !== 0; }
 function ccyClash(c){
   return !!(c.ccy && c.priceCcy && c.ccy.toUpperCase() !== c.priceCcy.toUpperCase());
 }
+
+/* ===================== portfolio ===================== */
+function lotsShares(c){ return (c.lots||[]).reduce(function(s,l){ return s + num(l.shares); }, 0); }
+function lotsCost(c){ return (c.lots||[]).reduce(function(s,l){ return s + num(l.shares)*num(l.price); }, 0); }
+function avgCost(c){ var sh = lotsShares(c); return sh > 0 ? lotsCost(c)/sh : 0; }
+function holdingValue(c){ return lotsShares(c) * num(c.price); }
+function unrealizedPL(c){ return holdingValue(c) - lotsCost(c); }
+function unrealizedPLPct(c){ var cost = lotsCost(c); return cost > 0 ? unrealizedPL(c)/cost*100 : 0; }
+function dayChangePerShare(c){ return num(c.price) - num(c.prevClose); }
+function dayChangeValue(c){ return dayChangePerShare(c) * lotsShares(c); }
+function dayChangePct(c){ var pc = num(c.prevClose); return pc > 0 ? dayChangePerShare(c)/pc*100 : 0; }
+function isHeld(c){ return lotsShares(c) > 0; }
+function fmtD(v){
+  var neg = v < 0; v = Math.abs(v);
+  return (neg?"-":"") + "$" + v.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
+}
+function fmtPct(v){ return (v < 0 ? "-" : "+") + Math.abs(v).toFixed(1) + "%"; }
 
 function assess(c){
   var out = { excluded:false, reason:"", flags:[] };
@@ -756,6 +802,7 @@ async function refreshPrices(silent){
         c.mcapDirect = "";
         c.priceCcy = q.currency || "";
         if (!c.co && q.name) c.co = q.name;
+        if (q.previousClose != null) c.prevClose = String(q.previousClose);
         c.updated = Date.now();
         got++;
       });
@@ -972,6 +1019,7 @@ function setTab(t){
   document.getElementById("viewMap").style.display = t === "map" ? "" : "none";
   document.getElementById("viewList").style.display = t === "list" ? "" : "none";
   document.getElementById("viewFavs").style.display = t === "favs" ? "" : "none";
+  document.getElementById("viewPortfolio").style.display = t === "portfolio" ? "" : "none";
   document.querySelectorAll("#navbar .navitem[data-nav]").forEach(function(b){
     b.classList.toggle("sel", b.dataset.nav === t);
   });
@@ -1274,6 +1322,66 @@ document.getElementById("favsledger").addEventListener("click", function(e){
   }, 60);
 });
 
+function portfolioRowHTML(c){
+  var pl = unrealizedPL(c), dch = dayChangeValue(c);
+  var plCls = pl >= 0 ? "cheap" : "rich", dchCls = dch >= 0 ? "cheap" : "rich";
+  return '<div class="row-main">' +
+    avatarHTML(c) +
+    '<div class="name-block">' +
+      '<span class="tkr">' + esc(c.tkr) + '</span><span class="co">' + esc(c.co) + '</span>' +
+      '<div class="meta tnum">' + lotsShares(c).toLocaleString() + ' sh @ ' + fmtD(avgCost(c)) + '</div>' +
+    '</div>' +
+    '<div class="pricecol">' +
+      '<div class="pricehead"><span class="mult tnum">' + fmtD(holdingValue(c)) + '</span></div>' +
+      '<div class="mult-sub ' + plCls + '">' + (pl >= 0 ? "+" : "") + fmtD(pl) + ' · ' + fmtPct(unrealizedPLPct(c)) + '</div>' +
+      (c.prevClose ? '<div class="mult-sub ' + dchCls + '" style="opacity:.72">' +
+        (dch >= 0 ? "+" : "") + fmtD(dch) + ' today</div>' : "") +
+    '</div>' +
+  '</div>';
+}
+
+function renderPortfolio(){
+  var sum = document.getElementById("portfolioSummary");
+  var host = document.getElementById("portfolioLedger");
+  var held = data.filter(isHeld);
+  if (!held.length){
+    sum.innerHTML = "";
+    host.innerHTML = '<div class="empty"><p>Nothing held yet — open a company from the List and add a buy lot under its Portfolio section to start tracking it here.</p></div>';
+    return;
+  }
+  var totalValue = 0, totalCost = 0, totalDayChange = 0, haveDayChange = false;
+  held.forEach(function(c){
+    totalValue += holdingValue(c);
+    totalCost += lotsCost(c);
+    if (c.prevClose){ totalDayChange += dayChangeValue(c); haveDayChange = true; }
+  });
+  var totalPL = totalValue - totalCost;
+  var totalPLPct = totalCost > 0 ? totalPL/totalCost*100 : 0;
+  var prevTotal = totalValue - totalDayChange;
+  var totalDayPct = prevTotal > 0 ? totalDayChange/prevTotal*100 : 0;
+  var plCls = totalPL >= 0 ? "cheap" : "rich", dchCls = totalDayChange >= 0 ? "cheap" : "rich";
+  sum.innerHTML =
+    '<div class="portfolio-total tnum">' + fmtD(totalValue) + '</div>' +
+    '<div class="portfolio-sub ' + plCls + '">' + (totalPL >= 0 ? "+" : "") + fmtD(totalPL) +
+      ' (' + fmtPct(totalPLPct) + ') all time</div>' +
+    (haveDayChange ? '<div class="portfolio-sub ' + dchCls + '">' + (totalDayChange >= 0 ? "+" : "") +
+      fmtD(totalDayChange) + ' (' + fmtPct(totalDayPct) + ') today</div>' : "");
+  var sorted = held.slice().sort(function(a,b){ return unrealizedPLPct(b) - unrealizedPLPct(a); });
+  host.innerHTML = sorted.map(function(c){
+    return '<div class="rowwrap" data-id="' + c.id + '">' + portfolioRowHTML(c) + '</div>';
+  }).join("");
+}
+
+document.getElementById("portfolioLedger").addEventListener("click", function(e){
+  var wrap = e.target.closest(".rowwrap"); if (!wrap) return;
+  openId = wrap.dataset.id; pinnedId = wrap.dataset.id;
+  setTab("list");
+  setTimeout(function(){
+    var el = document.querySelector('#ledger .rowwrap[data-id="' + openId + '"]');
+    if (el) el.scrollIntoView({ behavior:"smooth", block:"start" });
+  }, 60);
+});
+
 /* ===================== list ===================== */
 function f(cid, key, label, val, ph){
   return '<label><span class="lab">' + label + '</span>' +
@@ -1298,6 +1406,40 @@ function researchHTML(c){
       return '<a class="linkbtn" href="' + l[1] + '" target="_blank" rel="noopener">' + l[0] + '</a>';
     }).join("") +
     '</div><p class="hint">Announcements, reports and directors\' dealings live on the ASX page. The chart and news open in a new tab.</p></div>';
+}
+
+function portfolioFieldsetHTML(c){
+  var lots = c.lots || [];
+  var sh = lotsShares(c);
+  var rows = lots.map(function(l){
+    return '<div class="lotrow" data-lot="' + l.id + '">' +
+      '<span class="lotcell">' + esc(l.date || "") + '</span>' +
+      '<span class="lotcell tnum">' + num(l.shares).toLocaleString() + '</span>' +
+      '<span class="lotcell tnum">$' + num(l.price).toFixed(2) + '</span>' +
+      '<button class="lotdel" data-act="dellot" data-id="' + c.id + '" data-lot="' + l.id +
+        '" aria-label="Remove lot">×</button></div>';
+  }).join("");
+  var today = new Date().toISOString().slice(0,10);
+  return '<div class="fieldset"><div class="fs-title"><span>Portfolio</span></div>' +
+    (lots.length
+      ? '<div class="lotlist"><div class="lotrow lothead"><span class="lotcell">Date</span>' +
+        '<span class="lotcell">Shares</span><span class="lotcell">Price</span><span></span></div>' + rows + '</div>'
+      : '<p class="hint">No holdings yet — add a buy lot below to start tracking this position.</p>') +
+    '<div class="grid" style="margin-top:.6rem">' +
+      '<label><span class="lab">Date</span><input type="date" id="lotdate_' + c.id + '" value="' + today + '"></label>' +
+      '<label><span class="lab">Shares</span><input inputmode="decimal" id="lotshares_' + c.id + '" placeholder="100"></label>' +
+      '<label><span class="lab">Price paid $</span><input inputmode="decimal" id="lotprice_' + c.id + '" placeholder="0.00"></label>' +
+    '</div>' +
+    '<div class="ed-actions"><button class="mini" data-act="addlot" data-id="' + c.id + '">Add lot</button></div>' +
+    (sh > 0 ? '<div class="pf-calc tnum">' +
+      '<div><span>Shares held</span><span>' + sh.toLocaleString() + '</span></div>' +
+      '<div><span>Average cost</span><span>' + fmtD(avgCost(c)) + '</span></div>' +
+      '<div><span>Current value</span><span>' + fmtD(holdingValue(c)) + '</span></div>' +
+      '<div class="tot"><span>Unrealised P&amp;L</span><span style="color:' +
+        (unrealizedPL(c) >= 0 ? "var(--green)" : "var(--oxide)") + '">' +
+        (unrealizedPL(c) >= 0 ? "+" : "") + fmtD(unrealizedPL(c)) + ' (' + fmtPct(unrealizedPLPct(c)) + ')</span></div>' +
+    '</div>' : "") +
+  '</div>';
 }
 
 function editorHTML(c){
@@ -1350,6 +1492,8 @@ function editorHTML(c){
         f(c.id,"sga","Selling &amp; admin",c.sga) + f(c.id,"da","Depreciation &amp; amortisation",c.da) + '</div>' +
         '<p class="hint">Most ASX companies report expenses by nature, so these lines often do not exist. Top-down is usually the way.</p>') +
   '</div>' +
+
+  portfolioFieldsetHTML(c) +
 
   researchHTML(c) +
 
@@ -1431,6 +1575,7 @@ function paint(){
   renderChips();
   if (cfg.tab === "map"){ renderMap(scored); renderReadout(scored); }
   else if (cfg.tab === "favs") renderFavsView(scored);
+  else if (cfg.tab === "portfolio") renderPortfolio();
   else renderList(scored);
 }
 
@@ -1561,6 +1706,23 @@ document.getElementById("ledger").addEventListener("click", function(e){
         c.finUpdated = Date.now();
         pasteOpen = null; save(); paint();
         toast(r.hits + " fields read" + (r.note ? " · " + r.note : ""));
+        return;
+      case "addlot":
+        if (!c) return;
+        var dEl = document.getElementById("lotdate_" + c.id);
+        var shEl = document.getElementById("lotshares_" + c.id);
+        var prEl = document.getElementById("lotprice_" + c.id);
+        var shN = num(shEl && shEl.value), prN = num(prEl && prEl.value);
+        if (shN <= 0 || prN <= 0){ toast("Enter shares and a price first"); return; }
+        if (!c.lots) c.lots = [];
+        c.lots.push({ id: uid(), date: (dEl && dEl.value) || "", shares: shN, price: prN });
+        save(); paint();
+        toast("Lot added");
+        return;
+      case "dellot":
+        if (!c) return;
+        c.lots = (c.lots || []).filter(function(l){ return l.id !== btn.dataset.lot; });
+        save(); paint();
         return;
     }
   }
@@ -1842,7 +2004,7 @@ Promise.all([store.get(KEY), store.get(CFGKEY)]).then(function(r){
   if (r[1] && typeof r[1] === "object"){
     cfg.proxy = r[1].proxy || "";
     cfg.auto = !!r[1].auto;
-    cfg.tab = (r[1].tab === "list" || r[1].tab === "favs") ? r[1].tab : "map";
+    cfg.tab = ["list","favs","portfolio"].indexOf(r[1].tab) >= 0 ? r[1].tab : "map";
     cfg.hidden = Array.isArray(r[1].hidden) ? r[1].hidden : [];
     cfg.showEx = !!r[1].showEx;
   }
