@@ -309,11 +309,13 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
   box-shadow:none;font-size:.7rem;padding:.3rem .6rem}
 
 /* ---------- sheet (More) ---------- */
-.sheet-backdrop{display:none;position:fixed;inset:0;background:rgba(0,0,0,.35);z-index:71}
+:root{ --navh:4.6rem }
+.sheet-backdrop{display:none;position:fixed;top:0;left:0;right:0;bottom:var(--navh);
+  background:rgba(0,0,0,.35);z-index:71}
 .sheet-backdrop.open{display:block}
-.sheet{display:none;position:fixed;left:0;right:0;bottom:0;z-index:72;
+.sheet{display:none;position:fixed;left:0;right:0;bottom:var(--navh);z-index:72;
   background:var(--paper);border-radius:22px 22px 0 0;box-shadow:0 -8px 30px rgba(0,0,0,.2);
-  max-height:88vh;overflow-y:auto;padding:.6rem 1.1rem calc(1.4rem + env(safe-area-inset-bottom))}
+  max-height:calc(88vh - var(--navh));overflow-y:auto;padding:.6rem 1.1rem 1.4rem}
 .sheet.open{display:block}
 .sheet-handle{width:36px;height:4px;border-radius:99px;background:var(--rule);margin:.5rem auto 1rem}
 .sheet h2{font-family:var(--serif);font-size:1.2rem;font-weight:700;margin:0 0 1rem}
@@ -2301,6 +2303,17 @@ window.addEventListener("resize", function(){
   resizeT = setTimeout(function(){ if (cfg.tab === "map") paint(); }, 200);
 });
 
+function syncNavHeight(){
+  var nav = document.getElementById("navbar");
+  if (!nav) return;
+  var h = nav.getBoundingClientRect().height;
+  if (h > 0) document.documentElement.style.setProperty("--navh", h + "px");
+}
+window.addEventListener("resize", syncNavHeight);
+window.addEventListener("orientationchange", function(){ setTimeout(syncNavHeight, 250); });
+window.addEventListener("load", syncNavHeight);
+syncNavHeight();
+
 Promise.all([store.get(KEY), store.get(CFGKEY)]).then(function(r){
   if (Array.isArray(r[0])) data = r[0].map(function(c){
     var b = blank(); for (var k in c) if (k in b) b[k] = c[k]; b.id = c.id || uid(); return b;
@@ -2315,6 +2328,7 @@ Promise.all([store.get(KEY), store.get(CFGKEY)]).then(function(r){
   document.getElementById("proxyUrl").value = cfg.proxy;
   document.getElementById("btnAutoToggle").textContent = "Auto-refresh: " + (cfg.auto ? "on" : "off");
   setTab(cfg.tab);
+  syncNavHeight();
 
   if (cfg.auto && cfg.proxy){
     var stale = data.some(function(c){ return c.tkr && (!c.updated || Date.now() - c.updated > 6*3600*1000); });
