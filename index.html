@@ -210,6 +210,7 @@ button.mini{font-size:.72rem;padding:.4rem .7rem}
 .name-block{min-width:0}
 .tkr{font-family:var(--sans);font-weight:700;font-size:1rem;letter-spacing:0}
 .co{color:var(--ink-soft);font-size:.85rem;margin-left:.4rem;font-weight:400}
+.notemark{margin-left:.4rem;font-size:.72rem;color:var(--ink-soft);vertical-align:middle}
 .meta{font-family:var(--sans);font-size:.74rem;color:var(--ink-soft);margin-top:.2rem;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .pricecol{text-align:right;white-space:nowrap}
@@ -252,6 +253,7 @@ input,select,textarea{width:100%;font-family:var(--sans);font-size:.86rem;paddin
 input:focus,select:focus,textarea:focus{outline:none;border-color:var(--blue);
   box-shadow:0 0 0 3px var(--green-wash)}
 textarea{min-height:110px;font-size:.78rem;line-height:1.35;resize:vertical}
+textarea[data-k="notes"]{min-height:150px}
 .seg{display:flex;gap:.3rem;margin-bottom:.4rem}
 .seg button{flex:1;font-size:.72rem;padding:.5rem .3rem}
 .seg button[aria-pressed="true"]{background:var(--blue);color:#fff;border-color:var(--blue)}
@@ -667,7 +669,7 @@ function blank(){
            price:"", shares:"", mcapDirect:"",
            stDebt:"", ltDebt:"", pref:"", minority:"", cash:"",
            ebit:"", oneoffs:"", revenue:"", cogs:"", sga:"", da:"",
-           ccy:"", priceCcy:"", updated:0, finUpdated:0 };
+           ccy:"", priceCcy:"", updated:0, finUpdated:0, notes:"" };
 }
 
 function avatarHTML(c){
@@ -1761,6 +1763,13 @@ function portfolioFieldsetHTML(c){
   '</div>';
 }
 
+function notesFieldsetHTML(c){
+  return '<div class="fieldset"><div class="fs-title"><span>Investment notes</span></div>' +
+    '<textarea data-id="' + c.id + '" data-k="notes" placeholder="Why do you own this, or why are you watching it? Catalysts, risks, valuation anchors, what would change your mind…">' +
+    esc(c.notes) + '</textarea>' +
+    '<p class="hint">Private to this browser — not fetched from anywhere, not included in CSV export.</p></div>';
+}
+
 function editorHTML(c){
   var td = c.mode === "topdown";
   return '<div class="editor">' +
@@ -1785,6 +1794,8 @@ function editorHTML(c){
     '<div class="ed-actions"><button class="primary mini" data-act="parse" data-id="' + c.id + '">Read it</button>' +
     '<button class="ghost mini" data-act="paste" data-id="' + c.id + '">Close</button></div>' +
   '</div></div>' +
+
+  notesFieldsetHTML(c) +
 
   '<div class="fieldset"><div class="fs-title"><span>Enterprise value · $m</span>' +
     '<span style="font-family:var(--mono);font-weight:400;letter-spacing:0;text-transform:none">' +
@@ -1853,6 +1864,7 @@ function rowHTML(c, rank, a, m){
       '<span class="rank tnum">' + (rank ? "#" + rank : "unranked") + '</span> ' +
       '<span class="tkr">' + esc(c.tkr || "New entry") + '</span>' +
       '<span class="co">' + esc(c.co) + '</span>' +
+      (String(c.notes || "").trim() ? '<span class="notemark" title="Has investment notes">✎</span>' : "") +
       '<div class="meta tnum">' + meta + '</div>' +
       '<div class="flags">' + flags + '</div>' +
     '</div>' +
