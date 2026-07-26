@@ -13,8 +13,8 @@
   --cond:"IBM Plex Sans Condensed","IBM Plex Sans",-apple-system,sans-serif;
   --mono:"IBM Plex Mono",ui-monospace,"SF Mono",Menlo,monospace;
   --serif:"Source Serif 4",Georgia,serif;
-  --hero1:#0E1B3D;
-  --hero2:#1B2E5C;
+  --hero1:#14171C;
+  --hero2:#1F242C;
 
   /* light (default) */
   --paper:#F3F4F6;
@@ -67,21 +67,22 @@ body{
 .tnum{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
 
 /* ---------- hero ---------- */
-.hero{background:linear-gradient(165deg,var(--hero1),var(--hero2));padding:1.9rem 1.1rem 1.5rem;
-  color:#fff}
-.hero-top{display:flex;justify-content:space-between;align-items:flex-start;gap:1rem;
-  max-width:860px;margin:0 auto}
-.eyebrow{font-family:var(--cond);font-weight:600;font-size:.72rem;
-  letter-spacing:.14em;text-transform:uppercase;color:rgba(255,255,255,.62)}
+.hero{position:relative;overflow:hidden;background:linear-gradient(165deg,var(--hero1),var(--hero2));
+  padding:1.5rem 1.1rem;min-height:132px;color:#fff;display:flex;align-items:center}
+.hero canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
+.hero-top{position:relative;z-index:1;width:100%;display:flex;justify-content:space-between;
+  align-items:center;gap:1rem;max-width:860px;margin:0 auto}
 .hero h1{font-family:var(--serif);font-weight:700;
-  font-size:clamp(1.7rem,6vw,2.5rem);line-height:1.08;letter-spacing:-.01em;
-  margin:.3rem 0 .5rem;color:#fff;text-wrap:balance}
-.formula{font-family:var(--mono);font-size:.78rem;color:rgba(255,255,255,.72)}
-.formula b{color:#fff;font-weight:500}
-.themebtn{flex:0 0 auto;width:2.3rem;height:2.3rem;border-radius:50%;
-  background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.22);color:#fff;
-  font-size:1rem;padding:0;box-shadow:none;display:flex;align-items:center;justify-content:center}
-.themebtn:hover{background:rgba(255,255,255,.2);color:#fff}
+  font-size:clamp(1.25rem,4.2vw,1.7rem);line-height:1.1;letter-spacing:-.01em;
+  margin:0;color:#fff}
+.themeswitch{flex:0 0 auto;width:3rem;height:1.7rem;border-radius:999px;position:relative;
+  background:rgba(255,255,255,.15);border:1px solid rgba(255,255,255,.25);cursor:pointer;padding:0;
+  box-shadow:none}
+.themeswitch:hover{background:rgba(255,255,255,.22)}
+.themeswitch .thumb{position:absolute;top:2px;left:2px;width:1.3rem;height:1.3rem;border-radius:50%;
+  background:#fff;display:flex;align-items:center;justify-content:center;font-size:.68rem;line-height:1;
+  transition:left .2s cubic-bezier(.2,.8,.3,1);box-shadow:0 1px 3px rgba(0,0,0,.3)}
+.themeswitch[aria-checked="true"] .thumb{left:calc(100% - 1.3rem - 2px)}
 
 /* ---------- sector filter dropdown ---------- */
 .sectorfilter{position:relative;padding:.9rem 0 .3rem}
@@ -100,6 +101,9 @@ body{
   background:transparent;border:0;box-shadow:none;border-radius:10px;color:var(--ink);
   padding:.55rem .6rem;display:flex;align-items:center;gap:.55rem;cursor:pointer;text-align:left}
 .filmitem:hover{background:var(--paper);color:var(--ink)}
+.filmitem.apply{justify-content:center;background:var(--blue);color:#fff;font-weight:700;
+  margin-top:.3rem}
+.filmitem.apply:hover{background:var(--blue);opacity:.88;color:#fff}
 .filmitem .dot{width:9px;height:9px;border-radius:50%;background:var(--ink-soft);flex:0 0 auto}
 .filmitem span.flabel{flex:1}
 .filmitem .fcheck{width:18px;height:18px;flex:0 0 auto;border-radius:5px;border:1.5px solid var(--rule);
@@ -315,13 +319,12 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
 <body>
 
   <header class="hero">
+    <canvas id="heroCanvas"></canvas>
     <div class="hero-top">
-      <div>
-        <div class="eyebrow">Deep value screen · ASX · Australian companies</div>
-        <h1>The Acquirer's Multiple</h1>
-        <div class="formula"><b>Enterprise value</b> ÷ <b>Operating earnings</b> · lower is cheaper</div>
-      </div>
-      <button class="themebtn" id="btnTheme" aria-label="Toggle light/dark theme">☾</button>
+      <h1>The Acquirer's Multiple</h1>
+      <button class="themeswitch" id="btnTheme" role="switch" aria-checked="false" aria-label="Toggle light/dark theme">
+        <span class="thumb">☀</span>
+      </button>
     </div>
   </header>
 
@@ -853,56 +856,101 @@ async function fetchAllFinancials(){
 /* ===================== sector filter + tabs ===================== */
 var checkSVG = '<svg viewBox="0 0 24 24"><path d="M5 13l4 4 10-10"></path></svg>';
 
-function renderChips(){
+var filterDraft = null;
+
+function presentSectors(d){
   var counts = {};
   data.forEach(function(c){ counts[c.sector] = (counts[c.sector] || 0) + 1; });
-  var present = SECTORS.filter(function(s){ return counts[s] && (!BLOCKED[s] || cfg.showEx); });
-  var visibleCount = present.filter(function(s){ return cfg.hidden.indexOf(s) < 0; }).length;
-
-  var label;
-  if (!cfg.hidden.length) label = "All sectors";
-  else if (visibleCount === 0) label = "No sectors";
-  else if (visibleCount === 1){
-    var only = present.filter(function(s){ return cfg.hidden.indexOf(s) < 0; })[0];
-    label = SHORTSEC[only] || only;
-  } else label = visibleCount + " of " + present.length + " sectors";
-  document.getElementById("sfLabel").textContent = label;
-
-  var html = '<button class="filmitem' + (!cfg.hidden.length ? ' on' : '') + '" data-all="1">' +
+  return SECTORS.filter(function(s){ return counts[s] && (!BLOCKED[s] || d.showEx); });
+}
+function computeFilterLabel(d){
+  var present = presentSectors(d);
+  var visibleCount = present.filter(function(s){ return d.hidden.indexOf(s) < 0; }).length;
+  if (!d.hidden.length) return "All sectors";
+  if (visibleCount === 0) return "No sectors";
+  if (visibleCount === 1){
+    var only = present.filter(function(s){ return d.hidden.indexOf(s) < 0; })[0];
+    return SHORTSEC[only] || only;
+  }
+  return visibleCount + " of " + present.length + " sectors";
+}
+function filterMenuHTML(d){
+  var present = presentSectors(d);
+  var html = '<button class="filmitem' + (!d.hidden.length ? ' on' : '') + '" data-all="1">' +
     '<span class="fcheck">' + checkSVG + '</span><span class="flabel">All sectors</span></button>' +
     '<div class="filmdivider"></div>';
   present.forEach(function(s){
-    var on = cfg.hidden.indexOf(s) < 0;
+    var on = d.hidden.indexOf(s) < 0;
     html += '<button class="filmitem' + (on ? ' on' : ' off') + '" data-sec="' + esc(s) + '">' +
       '<span class="fcheck">' + checkSVG + '</span>' +
       '<span class="dot" style="background:' + SECCOL[s] + '"></span>' +
       '<span class="flabel">' + esc(SHORTSEC[s]) + '</span></button>';
   });
   html += '<div class="filmdivider"></div>' +
-    '<button class="filmitem' + (cfg.showEx ? ' on' : '') + '" id="chipEx">' +
-    '<span class="fcheck">' + checkSVG + '</span><span class="flabel">Banks &amp; REITs</span></button>';
-  document.getElementById("sfMenu").innerHTML = html;
+    '<button class="filmitem' + (d.showEx ? ' on' : '') + '" id="chipEx">' +
+    '<span class="fcheck">' + checkSVG + '</span><span class="flabel">Banks &amp; REITs</span></button>' +
+    '<div class="filmdivider"></div>' +
+    '<button class="filmitem apply" id="sfApply"><span class="flabel">Apply</span></button>';
+  return html;
+}
+function renderChips(){
+  var d = filterDraft || cfg;
+  document.getElementById("sfLabel").textContent = computeFilterLabel(d);
+  document.getElementById("sfMenu").innerHTML = filterMenuHTML(d);
 }
 
 function setFilterOpen(open){
+  if (open) filterDraft = { hidden: cfg.hidden.slice(), showEx: cfg.showEx };
   document.getElementById("sfMenu").classList.toggle("open", open);
   document.getElementById("sfBtn").setAttribute("aria-expanded", open);
+  if (open){
+    renderChips();
+  } else {
+    filterDraft = null;
+    document.getElementById("sfLabel").textContent = computeFilterLabel(cfg);
+  }
 }
 document.getElementById("sfBtn").addEventListener("click", function(e){
   e.stopPropagation();
   setFilterOpen(!document.getElementById("sfMenu").classList.contains("open"));
 });
 document.getElementById("sfMenu").addEventListener("click", function(e){
-  var b = e.target.closest("button"); if (!b) return;
-  if (b.id === "chipEx"){
-    cfg.showEx = !cfg.showEx;
-    if (!cfg.showEx) cfg.hidden = cfg.hidden.filter(function(s){ return !BLOCKED[s]; });
-    saveCfg(); paint(); return;
+  var b = e.target.closest("button"); if (!b || !filterDraft) return;
+
+  if (b.id === "sfApply"){
+    cfg.hidden = filterDraft.hidden.slice();
+    cfg.showEx = filterDraft.showEx;
+    saveCfg();
+    setFilterOpen(false);
+    paint();
+    return;
   }
-  if (b.dataset.all){ cfg.hidden = []; saveCfg(); paint(); return; }
-  var s = b.dataset.sec, i = cfg.hidden.indexOf(s);
-  if (i >= 0) cfg.hidden.splice(i, 1); else cfg.hidden.push(s);
-  saveCfg(); paint();
+  if (b.id === "chipEx"){
+    filterDraft.showEx = !filterDraft.showEx;
+    if (!filterDraft.showEx) filterDraft.hidden = filterDraft.hidden.filter(function(s){ return !BLOCKED[s]; });
+    b.classList.toggle("on", filterDraft.showEx);
+    document.getElementById("sfLabel").textContent = computeFilterLabel(filterDraft);
+    return;
+  }
+  if (b.dataset.all){
+    filterDraft.hidden = [];
+    document.querySelectorAll('#sfMenu .filmitem[data-sec]').forEach(function(el){
+      el.classList.add("on"); el.classList.remove("off");
+    });
+    b.classList.add("on");
+    document.getElementById("sfLabel").textContent = computeFilterLabel(filterDraft);
+    return;
+  }
+  var s = b.dataset.sec;
+  if (s){
+    var i = filterDraft.hidden.indexOf(s);
+    if (i >= 0) filterDraft.hidden.splice(i, 1); else filterDraft.hidden.push(s);
+    var on = filterDraft.hidden.indexOf(s) < 0;
+    b.classList.toggle("on", on); b.classList.toggle("off", !on);
+    var allBtn = document.querySelector('#sfMenu .filmitem[data-all]');
+    if (allBtn) allBtn.classList.toggle("on", !filterDraft.hidden.length);
+    document.getElementById("sfLabel").textContent = computeFilterLabel(filterDraft);
+  }
 });
 document.addEventListener("click", function(e){
   if (!e.target.closest("#sectorFilter")) setFilterOpen(false);
@@ -934,7 +982,9 @@ document.querySelectorAll("#navbar .navitem[data-nav]").forEach(function(btn){
 function applyTheme(t){
   if (t){ document.documentElement.setAttribute("data-theme", t); writeLS("asx_am_theme", t); }
   var dark = t ? t === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
-  document.getElementById("btnTheme").textContent = dark ? "☀" : "☾";
+  var sw = document.getElementById("btnTheme");
+  sw.setAttribute("aria-checked", dark);
+  sw.querySelector(".thumb").textContent = dark ? "☾" : "☀";
 }
 document.getElementById("btnTheme").addEventListener("click", function(){
   var cur = document.documentElement.getAttribute("data-theme");
@@ -953,6 +1003,102 @@ function closeSheet(){
   document.getElementById("sheetBackdrop").classList.remove("open");
 }
 document.getElementById("sheetBackdrop").addEventListener("click", closeSheet);
+
+/* ---------- hero chart animation ---------- */
+(function(){
+  var canvas = document.getElementById("heroCanvas");
+  var ctx = canvas.getContext("2d");
+  var hero = canvas.parentElement;
+  var reduced = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var dpr = Math.min(window.devicePixelRatio || 1, 2);
+  var bars = [], level = 0, trend = 1, trendCount = 4, t = 0, running = false, paused = false;
+
+  function size(){
+    var w = hero.clientWidth, h = hero.clientHeight;
+    canvas.width = w*dpr; canvas.height = h*dpr;
+    canvas.style.width = w+"px"; canvas.style.height = h+"px";
+    ctx.setTransform(dpr,0,0,dpr,0,0);
+  }
+
+  function lineY(i, w, h){
+    return h*0.55
+      + Math.sin(i*0.35 + t)*h*0.09
+      + Math.sin(i*0.09 + t*0.6)*h*0.14
+      + Math.sin(i*1.3 + t*1.7)*h*0.02;
+  }
+
+  function newBar(prevX, h){
+    trendCount--;
+    if (trendCount <= 0){ trend = Math.random() > .5 ? 1 : -1; trendCount = 3 + Math.floor(Math.random()*5); }
+    level += trend * (h*0.012) * (0.6 + Math.random()*0.8);
+    level += (0 - level) * 0.04;
+    level = Math.max(-h*0.22, Math.min(h*0.22, level));
+    var up = Math.random() < 0.78 ? trend > 0 : trend < 0;
+    var spike = Math.random() < 0.09;
+    var bodyH = (10 + Math.random()*h*0.22) * (spike ? 2.1 : 1);
+    var wickH = bodyH + 6 + Math.random()*(spike ? 26 : 12);
+    var width = spike ? 7+Math.random()*2 : 4+Math.random()*3;
+    var gap = 16 + Math.random()*10;
+    return { x: prevX + gap, up: up, bodyH: bodyH, wickH: wickH, w: width, level: level };
+  }
+
+  function seed(){
+    var w = hero.clientWidth, h = hero.clientHeight;
+    bars = []; level = 0; trend = 1; trendCount = 4;
+    var x = -20;
+    while (x < w + 40){ var b = newBar(x, h); bars.push(b); x = b.x; }
+  }
+
+  function frame(){
+    var w = hero.clientWidth, h = hero.clientHeight;
+    ctx.clearRect(0,0,w,h);
+    var baseY = h*0.65;
+
+    if (!reduced){
+      for (var i=0;i<bars.length;i++) bars[i].x -= .16;
+      if (bars.length && bars[0].x < -30){
+        bars.shift();
+        bars.push(newBar(bars[bars.length-1].x, h));
+      }
+    }
+
+    for (var i=0;i<bars.length;i++){
+      var b = bars[i];
+      var y = baseY + b.level;
+      var col = b.up ? "76,201,150" : "230,110,100";
+      ctx.strokeStyle = "rgba("+col+",.16)"; ctx.lineWidth = 1;
+      ctx.beginPath(); ctx.moveTo(b.x, y-b.wickH/2); ctx.lineTo(b.x, y+b.wickH/2); ctx.stroke();
+      ctx.fillStyle = "rgba("+col+",.12)";
+      ctx.fillRect(b.x-b.w/2, y-b.bodyH/2, b.w, b.bodyH);
+    }
+
+    var n = 60, pts = [];
+    for (var i=0;i<=n;i++) pts.push([i/n*w, lineY(i,w,h)]);
+    ctx.beginPath(); ctx.moveTo(pts[0][0],pts[0][1]);
+    for (var i=1;i<pts.length;i++) ctx.lineTo(pts[i][0],pts[i][1]);
+    ctx.lineTo(w,h); ctx.lineTo(0,h); ctx.closePath();
+    var grad = ctx.createLinearGradient(0,0,0,h);
+    grad.addColorStop(0, "rgba(140,180,255,.28)");
+    grad.addColorStop(1, "rgba(140,180,255,0)");
+    ctx.fillStyle = grad; ctx.fill();
+    ctx.beginPath(); ctx.moveTo(pts[0][0],pts[0][1]);
+    for (var i=1;i<pts.length;i++) ctx.lineTo(pts[i][0],pts[i][1]);
+    ctx.shadowColor = "rgba(170,200,255,.7)"; ctx.shadowBlur = 10;
+    ctx.strokeStyle = "rgba(210,225,255,.75)"; ctx.lineWidth = 1.8; ctx.stroke();
+    ctx.shadowBlur = 0;
+
+    if (!reduced) t += 0.006;
+    if (!reduced && !paused){ running = true; requestAnimationFrame(frame); }
+    else running = false;
+  }
+
+  size(); seed(); frame();
+  window.addEventListener("resize", function(){ size(); seed(); });
+  document.addEventListener("visibilitychange", function(){
+    paused = document.hidden;
+    if (!paused && !reduced && !running) frame();
+  });
+})();
 
 /* ===================== bubble chart ===================== */
 var Y_MAX = 20, X_MIN = -2, X_MAX = 6;
