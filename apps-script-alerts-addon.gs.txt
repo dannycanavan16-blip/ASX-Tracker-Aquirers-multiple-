@@ -1,0 +1,144 @@
+/**
+ * VALUE-ZONE ALERTS ADDON — paste into your existing Apps Script project
+ * (the same project behind your /exec proxy URL, with the cloud backup/sync
+ * addon already installed — this one depends on it)
+ *
+ * WHAT THIS DOES
+ * Once a day (or whatever schedule you pick), checks every company you've starred
+ * in the app and emails you the moment one of them newly drops under an 8×
+ * Acquirer's Multiple — the value zone. You only get emailed the first time a
+ * company crosses under 8×, not every day it stays there. If it later climbs back
+ * out and drops under 8× again later, that counts as a fresh crossing and you'll
+ * be emailed again.
+ *
+ * WHY IT NEEDS CLOUD BACKUP ALREADY SET UP
+ * This script doesn't run inside your browser, so it has no way to see which
+ * companies you've starred except by reading your last backup (the same one the
+ * "Back up now" button writes, via restore_() from the sync addon). That means:
+ *   - You need to have backed up at least once before this can find anything.
+ *   - Any time you star or unstar a company, back up again so the next check
+ *     actually reflects it — this script only ever sees what was last backed up,
+ *     not what's currently open in the app.
+ *
+ * HOW TO INSTALL
+ * 1. Paste everything below this comment block into your existing project — a
+ *    new script file, or the bottom of an existing one, either is fine.
+ * 2. Run checkValueZoneAlerts once by hand: tap the function dropdown at the top
+ *    of the editor (it's the only function in this file without a trailing
+ *    underscore, so it's the only one that shows up there) and hit Run.
+ *      - This will prompt a NEW authorisation screen, because sending mail is a
+ *        different permission to anything you've granted so far — same
+ *        "unverified app" warning as every other time, just approve it the same
+ *        way (Advanced → Go to [project] (unsafe) → Allow).
+ *      - This manual run is a REAL check, not a dry run: if any company you've
+ *        currently starred already qualifies, you WILL get a real email
+ *        immediately. That's expected, not a bug.
+ * 3. Set up the schedule: tap the clock icon (Triggers) in the left sidebar →
+ *    Add Trigger → function: checkValueZoneAlerts → source: Time-driven → Day
+ *    timer (pick any hour — once a day is plenty for this) → Save. No new
+ *    deployment or URL is needed for any of this; a trigger isn't a web app.
+ *
+ * NAMING
+ * Every helper below is prefixed vz (and ends in _, same private-helper
+ * convention your existing quotes_/fundamentals_/auth_ functions already use)
+ * specifically to avoid colliding with anything already in your project.
+ */
+
+var VZ_ZONE_MAX = 8;
+var VZ_BLOCKED = { "Financials": "Banks and insurers — EV is meaningless",
+                    "Real Estate (REIT)": "REIT — debt is the business model" };
+var VZ_ALERT_STATE_PROP = "ASX_ALERT_STATE";
+
+function vzNum_(v){ var n = parseFloat(v); return isFinite(n) ? n : 0; }
+
+function vzMcap_(c){
+  if (String(c.mcapDirect).trim() !== "") return vzNum_(c.mcapDirect);
+  return vzNum_(c.price) * vzNum_(c.shares);
+}
+function vzEv_(c){
+  return vzMcap_(c) + vzNum_(c.stDebt) + vzNum_(c.ltDebt) + vzNum_(c.pref) + vzNum_(c.minority) - vzNum_(c.cash);
+}
+function vzOpEarn_(c){
+  if (c.mode === "topdown") return vzNum_(c.ebit) + vzNum_(c.oneoffs);
+  return vzNum_(c.revenue) - vzNum_(c.cogs) - vzNum_(c.sga) - vzNum_(c.da);
+}
+function vzMultiple_(c){
+  var oe = vzOpEarn_(c); if (oe <= 0) return null;
+  var e = vzEv_(c); if (e <= 0) return null;
+  return e / oe;
+}
+function vzHasFigures_(c){ return vzMcap_(c) > 0 || vzOpEarn_(c) !== 0; }
+function vzCcyClash_(c){
+  return !!(c.ccy && c.priceCcy && String(c.ccy).toUpperCase() !== String(c.priceCcy).toUpperCase());
+}
+function vzExcluded_(c){
+  return !!VZ_BLOCKED[c.sector] || !vzHasFigures_(c) || vzOpEarn_(c) <= 0;
+}
+function vzYTicker_(c){
+  var t = String((c && c.tkr) || "").trim().toUpperCase();
+  if (!t) return "";
+  return /\./.test(t) ? t : t + ".AX";
+}
+function vzFmtMoney_(n){
+  return isFinite(n) ? "$" + Number(n).toFixed(2) : "—";
+}
+
+function checkValueZoneAlerts(){
+  var restored = restore_();
+  if (!restored || restored.error){
+    Logger.log("Value-zone alerts: " + (restored && restored.error ? restored.error : "no backup"));
+    return;
+  }
+
+  var candidates = (restored.data || []).filter(function(c){
+    return !!c.fav && !vzExcluded_(c) && !vzCcyClash_(c) && vzYTicker_(c);
+  });
+  if (!candidates.length) return;
+
+  var tickers = candidates.map(vzYTicker_);
+  var quotes = quotes_(tickers);
+
+  var props = PropertiesService.getScriptProperties();
+  var priorState = {};
+  try{ priorState = JSON.parse(props.getProperty(VZ_ALERT_STATE_PROP) || "{}"); }catch(err){ priorState = {}; }
+
+  var newState = {}, newlyInZone = [];
+
+  candidates.forEach(function(c){
+    var t = vzYTicker_(c);
+    var q = quotes[t];
+    var clone = {};
+    for (var k in c) clone[k] = c[k];
+    if (q && !q.error && q.price != null){
+      // Note: unlike the app's own refreshPrices(), we deliberately do NOT clear
+      // mcapDirect here. That clear makes sense in the app because it's a persisted
+      // nudge back to auto-tracked market cap; here it's a throwaway calc, and
+      // clearing it would zero out mcap (and the multiple) for any company that
+      // relies on mcapDirect without share-count data. vzMcap_ already prefers
+      // mcapDirect when set, so leaving it alone keeps that company's multiple
+      // exactly as backed-up while still picking up a fresher display price.
+      clone.price = String(q.price);
+    }
+
+    var m = vzMultiple_(clone);
+    var inZone = (m != null && m < VZ_ZONE_MAX);
+    newState[t] = inZone;
+    if (inZone && !priorState[t]){
+      newlyInZone.push({ ticker: t, name: c.co || t, multiple: m, price: vzNum_(clone.price) });
+    }
+  });
+
+  props.setProperty(VZ_ALERT_STATE_PROP, JSON.stringify(newState));
+  if (!newlyInZone.length) return;
+
+  var subject = "Value zone alert: " + newlyInZone.length +
+    (newlyInZone.length === 1 ? " company" : " companies") + " now under 8×";
+  var body = "The following favourited companies have newly entered the value zone " +
+    "(Acquirer's Multiple under 8x):\n\n" +
+    newlyInZone.map(function(r){
+      return r.ticker + " — " + r.name + " — " + r.multiple.toFixed(1) + "x — " + vzFmtMoney_(r.price);
+    }).join("\n") +
+    "\n\nThis only fires the first time a company crosses under 8x, not every day it stays there.";
+
+  MailApp.sendEmail(Session.getEffectiveUser().getEmail(), subject, body);
+}
