@@ -909,6 +909,7 @@ document.addEventListener("click", function(e){
 });
 
 function setTab(t){
+  closeSheet();
   cfg.tab = t; saveCfg();
   document.getElementById("viewMap").style.display = t === "map" ? "" : "none";
   document.getElementById("viewList").style.display = t === "list" ? "" : "none";
@@ -920,7 +921,11 @@ function setTab(t){
 }
 document.querySelectorAll("#navbar .navitem[data-nav]").forEach(function(btn){
   btn.addEventListener("click", function(){
-    if (btn.dataset.nav === "more"){ openSheet(); return; }
+    if (btn.dataset.nav === "more"){
+      var isOpen = document.getElementById("moreSheet").classList.contains("open");
+      if (isOpen) closeSheet(); else openSheet();
+      return;
+    }
     setTab(btn.dataset.nav);
   });
 });
