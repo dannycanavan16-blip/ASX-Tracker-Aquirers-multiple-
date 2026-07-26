@@ -422,6 +422,9 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
     </ol>
     <p>Yahoo has no public API, so the proxy uses their internal endpoints. They change them without warning. If quotes stop coming through, add <code>?fn=clearcache</code> to your exec URL and load it once — a stale crumb is usually the problem.</p>
 
+    <h3>Real company logos</h3>
+    <p>Avatars in the List and Favourites views can show a real company logo instead of a coloured initial. This is resolved by your proxy script, not the browser — see <code>apps-script-logo-addon.gs.txt</code> in the project files for the snippet to paste into your existing script and redeploy. Once installed, logos fill in automatically the next time you fetch prices or financials for a company. The <b>Website</b> field inside a company is a fallback the browser can use on its own for anything the proxy doesn't recognise.</p>
+
     <h3>Fetch all financials</h3>
     <p>Works through the whole list one company at a time, roughly 1.3 seconds apart so Yahoo does not throttle you. It saves after every company, so stopping it or losing the page costs you nothing — start it again and it picks up where it left off. It skips banks and REITs, and skips anything already pulled in the last month. Come results season, run it again and it refreshes the lot. Smaller companies often come back empty — Yahoo's coverage thins out down the list. Those are the ones to paste by hand.</p>
 
@@ -537,6 +540,7 @@ function num(v){ var n = parseFloat(v); return isFinite(n) ? n : 0; }
 
 function blank(){
   return { id:uid(), tkr:"", co:"", sector:"Materials", mode:"topdown", fav:false, website:"",
+           logoUrl:"",
            price:"", shares:"", mcapDirect:"",
            stDebt:"", ltDebt:"", pref:"", minority:"", cash:"",
            ebit:"", oneoffs:"", revenue:"", cogs:"", sga:"", da:"",
@@ -547,11 +551,16 @@ function avatarHTML(c){
   var init = (c.tkr || "?").slice(0,2).toUpperCase();
   var col = SECCOL[c.sector] || "#666";
   var fallback = '<span class="fallback" style="background:' + col + '">' + esc(init) + '</span>';
-  var site = String(c.website || "").trim().replace(/^https?:\/\//i,"").replace(/\/.*$/,"");
-  if (!site) return '<span class="avatar">' + fallback + '</span>';
-  var url = "https://www.google.com/s2/favicons?sz=128&domain=" + encodeURIComponent(site);
+  var url = "";
+  if (c.logoUrl){
+    url = c.logoUrl;
+  } else {
+    var site = String(c.website || "").trim().replace(/^https?:\/\//i,"").replace(/\/.*$/,"");
+    if (site) url = "https://www.google.com/s2/favicons?sz=128&domain=" + encodeURIComponent(site);
+  }
+  if (!url) return '<span class="avatar">' + fallback + '</span>';
   return '<span class="avatar">' + fallback +
-    '<img src="' + url + '" alt="" loading="lazy" onerror="this.remove()"></span>';
+    '<img src="' + esc(url) + '" alt="" loading="lazy" onerror="this.remove()"></span>';
 }
 
 function mcap(c){
@@ -779,6 +788,7 @@ async function pullOne(c){
   if (res.price != null){ c.price = String(res.price); c.updated = Date.now(); }
   if (!c.co && res.name) c.co = res.name;
   if (f.mcapDirect != null) c.mcapDirect = "";
+  if (res.logo) c.logoUrl = res.logo;
   c.finUpdated = Date.now();
   return n;
 }
@@ -1303,7 +1313,7 @@ function editorHTML(c){
     '<label><span class="lab">Sector</span><select data-id="' + c.id + '" data-k="sector">' +
       SECTORS.map(function(s){ return '<option' + (s === c.sector ? ' selected' : '') + '>' + s + '</option>'; }).join("") +
     '</select></label>' +
-    '<label><span class="lab">Website (for logo)</span><input data-id="' + c.id + '" data-k="website" value="' + esc(c.website) + '" placeholder="bhp.com"></label>' +
+    '<label><span class="lab">Website (logo fallback)</span><input data-id="' + c.id + '" data-k="website" value="' + esc(c.website) + '" placeholder="bhp.com"></label>' +
   '</div>' +
   '<div class="ed-actions">' +
     '<button class="mini" data-act="paste" data-id="' + c.id + '">Paste from Yahoo</button>' +
