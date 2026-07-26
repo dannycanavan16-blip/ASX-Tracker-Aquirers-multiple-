@@ -488,6 +488,16 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
     </div>
     <div class="status" id="proxyStatus"></div>
     <p class="hint">Prices refresh from the proxy. Financials stay put until you pull or paste them — ASX companies only report twice a year.</p>
+
+    <div style="margin-top:1rem;padding-top:.9rem;border-top:1px solid var(--rule)">
+      <h2>Cloud backup</h2>
+      <p class="hint" style="margin:0 0 .6rem">Saves everything — companies, portfolio, notes — to a private Google Sheet your script creates in your own Drive. Manual only; nothing uploads automatically.</p>
+      <div style="display:flex;gap:.4rem;flex-wrap:wrap">
+        <button class="mini" id="btnBackup">Back up now</button>
+        <button class="ghost mini" id="btnRestore">Restore from cloud</button>
+      </div>
+      <div class="status" id="syncStatus"></div>
+    </div>
   </div>
 
   <div class="progress" id="progress">
@@ -514,6 +524,9 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
 
     <h3>Real company logos</h3>
     <p>Avatars in the List and Favourites views can show a real company logo instead of a coloured initial. This is resolved by your proxy script, not the browser — see <code>apps-script-logo-addon.gs.txt</code> in the project files for the snippet to paste into your existing script and redeploy. Once installed, logos fill in automatically the next time you fetch prices or financials for a company. The <b>Website</b> field inside a company is a fallback the browser can use on its own for anything the proxy doesn't recognise.</p>
+
+    <h3>Cloud backup</h3>
+    <p>Back up now sends your full company list — tickers, financials, notes, portfolio lots, price history — plus your view settings to a private Google Sheet that your own script creates in your own Drive, not a third party. This needs the same proxy script as everything else, with one addition: see <code>apps-script-sync-addon.gs.txt</code> in the project files for the snippet to paste into your existing script and redeploy. No spreadsheet setup needed — the first backup creates it for you. It's manual both ways: nothing uploads or restores unless you tap the button, and restoring replaces everything currently on this device.</p>
 
     <h3>Portfolio</h3>
     <p>Open any company and add a <b>buy lot</b> — date, shares, price paid — under its Portfolio section. Add as many lots as you like for the same company; the app averages your cost across all of them. Once a company has at least one lot, it shows up in the <b>Portfolio</b> tab with its current value and unrealised profit or loss, and the tab's summary totals everything you hold. Nothing here is sent anywhere — it's stored the same way as the rest of your data.</p>
@@ -656,7 +669,7 @@ var BLOCKED = {"Financials":"Banks and insurers — EV is meaningless",
 var CYCLICAL = {"Materials":1,"Energy":1};
 var ZONE_MAX = 8;
 
-var data = [], cfg = { proxy:"", auto:false, tab:"map", hidden:[], showEx:false };
+var data = [], cfg = { proxy:"", auto:false, tab:"map", hidden:[], showEx:false, lastSync:null };
 var openId = null, pinnedId = null, pasteOpen = null, busy = false;
 var lastDeleted = null, undoTimer = null;
 
@@ -1053,6 +1066,88 @@ async function fetchAllFinancials(){
   toast(msg);
   if (failed.length) setStatus("No data for: " + failed.slice(0,12).join(", ") +
     (failed.length > 12 ? " and " + (failed.length - 12) + " more" : ""), "bad");
+}
+
+/* ===================== cloud backup/sync ===================== */
+function setSyncStatus(msg, kind){
+  var el = document.getElementById("syncStatus");
+  el.textContent = msg;
+  el.className = "status" + (kind ? " " + kind : "");
+}
+function renderSyncStatus(){
+  if (!cfg.lastSync){ setSyncStatus(""); return; }
+  var when = new Date(cfg.lastSync.ts).toLocaleString([], {dateStyle:"medium", timeStyle:"short"});
+  setSyncStatus((cfg.lastSync.kind === "restore" ? "Restored" : "Backed up") + " " + when, "good");
+}
+
+async function backupToCloud(){
+  if (!cfg.proxy){ setSyncStatus("Add your Apps Script URL first", "bad"); openSheet(); return; }
+  if (busy) return;
+  busy = true;
+  var btn = document.getElementById("btnBackup");
+  btn.disabled = true; btn.textContent = "Backing up…";
+  try{
+    var payload = { fn:"backup", data: data,
+      cfg: { auto: cfg.auto, tab: cfg.tab, hidden: cfg.hidden, showEx: cfg.showEx } };
+    var res = await fetch(cfg.proxy, {
+      method: "POST",
+      headers: { "Content-Type": "text/plain;charset=utf-8" },
+      body: JSON.stringify(payload)
+    }).then(function(r){ return r.json(); });
+    if (!res || res.error) throw new Error((res && res.error) || "Unknown error");
+    cfg.lastSync = { ts: res.savedAt || Date.now(), kind: "backup" };
+    saveCfg();
+    renderSyncStatus();
+    toast("Backed up " + (res.companies != null ? res.companies : data.length) + " companies");
+  }catch(err){
+    setSyncStatus("Backup failed: " + err.message, "bad");
+    toast("Backup failed");
+  }finally{
+    busy = false;
+    btn.disabled = false; btn.textContent = "Back up now";
+  }
+}
+
+async function restoreFromCloud(){
+  if (!cfg.proxy){ setSyncStatus("Add your Apps Script URL first", "bad"); openSheet(); return; }
+  if (busy) return;
+  busy = true;
+  var btn = document.getElementById("btnRestore");
+  btn.disabled = true; btn.textContent = "Checking…";
+  try{
+    var res = await proxyGet({ fn:"restore" });
+    if (!res || res.error || !res.data){
+      setSyncStatus(res && res.error ? res.error : "No backup found yet", "bad");
+      toast("No backup found");
+      return;
+    }
+    var when = new Date(res.savedAt).toLocaleString([], {dateStyle:"medium", timeStyle:"short"});
+    var ok = confirm("Restore " + res.data.length + " companies from the backup taken " + when +
+      "? This replaces everything currently on this device.");
+    if (!ok) return;
+    data = res.data.map(function(c){
+      var b = blank(); for (var k in c) if (k in b) b[k] = c[k]; b.id = c.id || uid(); return b;
+    });
+    if (res.cfg && typeof res.cfg === "object"){
+      cfg.auto = !!res.cfg.auto;
+      cfg.tab = ["list","favs","portfolio"].indexOf(res.cfg.tab) >= 0 ? res.cfg.tab : "map";
+      cfg.hidden = Array.isArray(res.cfg.hidden) ? res.cfg.hidden : [];
+      cfg.showEx = !!res.cfg.showEx;
+    }
+    cfg.lastSync = { ts: res.savedAt || Date.now(), kind: "restore" };
+    openId = null; pinnedId = null;
+    save(); saveCfg();
+    document.getElementById("btnAutoToggle").textContent = "Auto-refresh: " + (cfg.auto ? "on" : "off");
+    renderSyncStatus();
+    setTab(cfg.tab);
+    toast("Restored " + data.length + " companies");
+  }catch(err){
+    setSyncStatus("Restore failed: " + err.message, "bad");
+    toast("Restore failed");
+  }finally{
+    busy = false;
+    btn.disabled = false; btn.textContent = "Restore from cloud";
+  }
 }
 
 /* ===================== sector filter + tabs ===================== */
@@ -2098,6 +2193,8 @@ document.getElementById("btnAdd").addEventListener("click", function(){
 });
 document.getElementById("btnRefresh").addEventListener("click", function(){ refreshPrices(false); });
 document.getElementById("btnFetchAll").addEventListener("click", function(){ fetchAllFinancials(); });
+document.getElementById("btnBackup").addEventListener("click", backupToCloud);
+document.getElementById("btnRestore").addEventListener("click", restoreFromCloud);
 document.getElementById("btnStopFetch").addEventListener("click", function(){
   stopFetch = true;
   document.getElementById("progressTxt").textContent = "stopping…";
@@ -2352,9 +2449,11 @@ Promise.all([store.get(KEY), store.get(CFGKEY)]).then(function(r){
     cfg.tab = ["list","favs","portfolio"].indexOf(r[1].tab) >= 0 ? r[1].tab : "map";
     cfg.hidden = Array.isArray(r[1].hidden) ? r[1].hidden : [];
     cfg.showEx = !!r[1].showEx;
+    cfg.lastSync = r[1].lastSync || null;
   }
   document.getElementById("proxyUrl").value = cfg.proxy;
   document.getElementById("btnAutoToggle").textContent = "Auto-refresh: " + (cfg.auto ? "on" : "off");
+  renderSyncStatus();
   setTab(cfg.tab);
   syncNavHeight();
 
