@@ -27,13 +27,16 @@
  *    a `logo` field from now on.
  *
  * HOW LOGOS ARE RESOLVED
- * - First choice: the curated TICKER_DOMAINS map below (covers every company in the app's
- *   built-in "Load ASX names" starter list) — a real fetch of that company's own site favicon,
- *   so cheap it and its resulting logo is guaranteed correct.
- * - Fallback: for any ticker not in the map (custom companies you've added by hand), it asks
- *   Clearbit's public logo API using a guessed domain — better than nothing, not guaranteed
- *   correct. Add the ticker to TICKER_DOMAINS below any time you want a guaranteed-correct
- *   logo for a company outside the starter list.
+ * - The curated TICKER_DOMAINS map below (covers every company in the app's built-in
+ *   "Load ASX names" starter list) resolves a ticker to that company's real website domain,
+ *   then fetches its favicon via Google's public favicon service (google.com/s2/favicons) —
+ *   the same service already used client-side elsewhere in this app, chosen because it's far
+ *   more reliably reachable than Clearbit's logo API (which has become DNS-unreachable on
+ *   some networks since Clearbit's acquisition by HubSpot).
+ * - For any ticker not in the map (custom companies you've added by hand), no logo is
+ *   returned — the client falls back to the manual Website field, then a colored-initials
+ *   avatar. Add the ticker to TICKER_DOMAINS below any time you want a real logo for a
+ *   company outside the starter list.
  *
  * A few domains below are best-effort (smaller/less well-known companies) — if one turns out
  * wrong, just fix the string on that line and redeploy; no other code changes needed.
@@ -143,15 +146,17 @@ var TICKER_DOMAINS = {
 
 /**
  * Resolves a ticker (e.g. "BHP.AX" or "BHP") to a logo image URL.
- * Uses the curated domain map first, then falls back to a best-guess via Clearbit's
- * public logo API for anything not in the map.
+ * Uses the curated domain map, then fetches that company's own site favicon via
+ * Google's public favicon service (the same one used elsewhere in this app — reliably
+ * reachable, unlike Clearbit's logo API which has become unreachable/DNS-dead for some
+ * networks since Clearbit's acquisition by HubSpot).
  */
 function resolveLogo(ticker){
   if (!ticker) return null;
   var t = String(ticker).toUpperCase().replace(/\.AX$/, "").trim();
   var domain = TICKER_DOMAINS[t];
   if (domain){
-    return "https://logo.clearbit.com/" + domain;
+    return "https://www.google.com/s2/favicons?sz=128&domain=" + encodeURIComponent(domain);
   }
   // Not in the curated map — no reliable domain to go on, so return nothing rather than
   // guess wildly (the client falls back to the manual Website field / initials avatar).
