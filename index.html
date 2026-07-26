@@ -319,6 +319,12 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
 .sheet.open{display:block}
 .sheet-handle{width:36px;height:4px;border-radius:99px;background:var(--rule);margin:.5rem auto 1rem}
 .sheet h2{font-family:var(--serif);font-size:1.2rem;font-weight:700;margin:0 0 1rem}
+.sheet-head{display:flex;align-items:center;justify-content:space-between;gap:.6rem;
+  position:sticky;top:-.6rem;background:var(--paper);padding-top:.6rem;z-index:1}
+.sheet-head h2{margin:0 0 1rem}
+.sheet-x{background:transparent;border:0;box-shadow:none;color:var(--ink-soft);
+  font-size:1.3rem;line-height:1;padding:.2rem .3rem;margin:-.2rem -.3rem 1rem 0;cursor:pointer}
+.sheet-x:hover{background:transparent;color:var(--oxide)}
 .sheet-actions{display:flex;flex-wrap:wrap;gap:.5rem;margin-bottom:1.2rem}
 
 /* ---------- compare ---------- */
@@ -454,7 +460,8 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
 <div class="sheet-backdrop" id="sheetBackdrop"></div>
 <div class="sheet" id="moreSheet">
   <div class="sheet-handle"></div>
-  <h2>More</h2>
+  <div class="sheet-head"><h2>More</h2>
+    <button class="sheet-x" id="btnMoreClose" aria-label="Close">✕</button></div>
   <div class="sheet-actions">
     <button id="btnRefresh">Refresh prices</button>
     <button id="btnFetchAll">Fetch all financials</button>
@@ -561,7 +568,8 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
 <div class="sheet" id="compareSheet">
   <div class="sheet-handle"></div>
   <div id="comparePicker">
-    <h2>Compare companies</h2>
+    <div class="sheet-head"><h2>Compare companies</h2>
+      <button class="sheet-x" id="btnCompareClose" aria-label="Close">✕</button></div>
     <div class="searchrow"><input id="compareSearch" type="search" placeholder="Search ticker or name" autocomplete="off"></div>
     <div id="comparePickList"></div>
     <div class="ed-actions" style="margin-top:1rem">
@@ -569,8 +577,11 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
     </div>
   </div>
   <div id="compareResult" style="display:none">
-    <div class="fs-title" style="margin-bottom:.8rem"><span>Comparison</span>
-      <button class="mini ghost" id="btnCompareBack">Edit selection</button></div>
+    <div class="fs-title sheet-head" style="margin-bottom:.8rem"><span>Comparison</span>
+      <span style="display:flex;gap:.5rem;align-items:center">
+        <button class="mini ghost" id="btnCompareBack">Edit selection</button>
+        <button class="sheet-x" id="btnCompareClose2" aria-label="Close" style="margin:0">✕</button>
+      </span></div>
     <div class="compare-scroll"><div id="compareTable"></div></div>
   </div>
 </div>
@@ -578,7 +589,8 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
 <div class="sheet-backdrop" id="statsBackdrop"></div>
 <div class="sheet" id="statsSheet">
   <div class="sheet-handle"></div>
-  <h2>Sector stats</h2>
+  <div class="sheet-head"><h2>Sector stats</h2>
+    <button class="sheet-x" id="btnStatsClose" aria-label="Close">✕</button></div>
   <p class="hint" style="margin:-.6rem 0 .8rem">Tap a sector to filter the List down to just it. Banks, insurers and REITs never rank so aren't shown here.</p>
   <div id="sectorStatsList"></div>
 </div>
@@ -1192,6 +1204,7 @@ function closeSheet(){
   document.getElementById("sheetBackdrop").classList.remove("open");
 }
 document.getElementById("sheetBackdrop").addEventListener("click", closeSheet);
+document.getElementById("btnMoreClose").addEventListener("click", closeSheet);
 
 /* ---------- compare ---------- */
 var COMPARE_MAX = 3;
@@ -1227,6 +1240,8 @@ document.getElementById("btnCompare").addEventListener("click", function(){
   openCompare();
 });
 document.getElementById("compareBackdrop").addEventListener("click", closeCompare);
+document.getElementById("btnCompareClose").addEventListener("click", closeCompare);
+document.getElementById("btnCompareClose2").addEventListener("click", closeCompare);
 
 function renderComparePicker(){
   var q = (document.getElementById("compareSearch").value || "").trim().toLowerCase();
@@ -1355,6 +1370,7 @@ document.getElementById("btnSectorStats").addEventListener("click", function(){
   openStats();
 });
 document.getElementById("statsBackdrop").addEventListener("click", closeStats);
+document.getElementById("btnStatsClose").addEventListener("click", closeStats);
 document.getElementById("sectorStatsList").addEventListener("click", function(e){
   var row = e.target.closest(".sectorstat-row"); if (!row) return;
   var sec = row.dataset.sector;
