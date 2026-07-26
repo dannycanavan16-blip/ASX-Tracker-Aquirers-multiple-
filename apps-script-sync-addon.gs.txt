@@ -1,0 +1,114 @@
+/**
+ * CLOUD BACKUP/SYNC ADDON — paste into your existing Apps Script project
+ * (the same project behind your /exec proxy URL used for fn=quote / fn=fundamentals)
+ *
+ * WHAT THIS DOES
+ * Adds two things your script doesn't have yet:
+ *   - fn=restore (a GET, handled the same way as your existing fn=quote/fundamentals) —
+ *     returns your last backup.
+ *   - A POST handler — the app sends your full company list here when you tap "Back up now"
+ *     in Settings, and it gets saved to a Google Sheet that this script creates for you in
+ *     your own Drive the first time it runs. Nothing is sent to any third party; it's your
+ *     script writing to your own Drive, same as everything else this proxy does.
+ *
+ * HOW TO INSTALL
+ * 1. Open your project at script.google.com (the one you deployed as your proxy).
+ * 2. Add a new script file (or paste at the bottom of an existing one) containing
+ *    everything below this comment block.
+ * 3. Find the function that handles your GET requests — the one with a switch or if-chain
+ *    on the `fn` parameter (it's the one already handling "quote", "fundamentals", and
+ *    "clearcache" — the exact name/shape varies by how you wrote it originally). Add one
+ *    more branch to it:
+ *
+ *        if (p.fn === "restore") {
+ *          return ContentService.createTextOutput(JSON.stringify(restore_()))
+ *            .setMimeType(ContentService.MimeType.JSON);
+ *        }
+ *
+ *    (Match whatever variable name you used for the parsed request params — shown as `p`
+ *    above since that's a common choice, but use your own.)
+ * 4. That's it for existing code — everything else (doPost, the sheet, the backup/restore
+ *    logic) is new and self-contained below; you don't need to touch anything else.
+ * 5. Deploy → Manage deployments → Edit → New version → Deploy (same as when you first set
+ *    this up). No new URL is needed.
+ *
+ * NO SPREADSHEET SETUP NEEDED
+ * The first time you tap "Back up now" in the app, this script creates a new Google Sheet
+ * called "ASX Acquirer's Multiple — Cloud Backup" in your Drive and remembers its ID for
+ * next time. You never need to create, share, or link anything by hand.
+ *
+ * HOW BACKUPS ARE STORED
+ * Your data is written as one long piece of text (not spreadsheet columns) — this is
+ * deliberate: the app's data model has grown a few times already (portfolio, price history,
+ * notes were all added after this app first shipped) and will likely keep growing, and a
+ * fixed column layout would break every time a field is added or renamed. Storing it as text
+ * means backups keep working with zero changes here, no matter what fields the app adds
+ * later. Because a single spreadsheet cell can only hold so much text, long backups are
+ * split across a few cells and stitched back together on restore — this is all handled for
+ * you below, no size limit you need to think about in practice.
+ */
+
+var SYNC_SHEET_PROP = "ASX_SYNC_SHEET_ID";
+var SYNC_TAB_NAME = "backup";
+var SYNC_CHUNK_SIZE = 45000;
+
+function doPost(e){
+  try{
+    var body = JSON.parse(e.postData.contents);
+    if (body.fn === "backup") return jsonOut_(backup_(body));
+    return jsonOut_({ error: "Unknown fn: " + body.fn });
+  }catch(err){
+    return jsonOut_({ error: String(err && err.message ? err.message : err) });
+  }
+}
+
+function jsonOut_(obj){
+  return ContentService.createTextOutput(JSON.stringify(obj))
+    .setMimeType(ContentService.MimeType.JSON);
+}
+
+function getSyncSheet_(){
+  var props = PropertiesService.getScriptProperties();
+  var id = props.getProperty(SYNC_SHEET_PROP);
+  var ss = null;
+  if (id){
+    try{ ss = SpreadsheetApp.openById(id); }catch(err){ ss = null; }
+  }
+  if (!ss){
+    ss = SpreadsheetApp.create("ASX Acquirer's Multiple — Cloud Backup");
+    props.setProperty(SYNC_SHEET_PROP, ss.getId());
+  }
+  var sheet = ss.getSheetByName(SYNC_TAB_NAME);
+  if (!sheet) sheet = ss.insertSheet(SYNC_TAB_NAME);
+  return sheet;
+}
+
+function backup_(body){
+  var sheet = getSyncSheet_();
+  var json = JSON.stringify({ data: body.data || [], cfg: body.cfg || {} });
+  var chunks = [];
+  for (var i = 0; i < json.length; i += SYNC_CHUNK_SIZE){
+    chunks.push(json.slice(i, i + SYNC_CHUNK_SIZE));
+  }
+  var savedAt = Date.now();
+  sheet.clear();
+  sheet.getRange(1, 1, 1, 2).setValues([[savedAt, chunks.length]]);
+  if (chunks.length){
+    sheet.getRange(2, 1, chunks.length, 1).setValues(chunks.map(function(c){ return [c]; }));
+  }
+  return { ok: true, savedAt: savedAt, companies: (body.data || []).length };
+}
+
+function restore_(){
+  var sheet = getSyncSheet_();
+  var lastRow = sheet.getLastRow();
+  if (lastRow < 1) return { error: "No backup found yet" };
+  var head = sheet.getRange(1, 1, 1, 2).getValues()[0];
+  var savedAt = head[0], chunkCount = head[1];
+  if (!chunkCount) return { error: "No backup found yet" };
+  var rows = sheet.getRange(2, 1, chunkCount, 1).getValues();
+  var json = rows.map(function(r){ return r[0]; }).join("");
+  var parsed;
+  try{ parsed = JSON.parse(json); }catch(err){ return { error: "Backup is corrupted: " + err }; }
+  return { ok: true, savedAt: savedAt, data: parsed.data || [], cfg: parsed.cfg || {} };
+}
