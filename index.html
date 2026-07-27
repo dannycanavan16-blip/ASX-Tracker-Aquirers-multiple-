@@ -122,10 +122,13 @@ body{
   font-size:.68rem;letter-spacing:.05em;background:var(--paper);
   color:var(--ink);border:1px solid var(--rule);padding:.38rem .7rem;border-radius:999px}
 .linkbtn:hover{background:var(--blue);color:#fff;border-color:var(--blue)}
-.searchrow{padding:.1rem 0 .7rem}
-.searchrow input{width:100%;font-family:var(--sans);font-size:.9rem;padding:.55rem .7rem;
+.searchrow{padding:.1rem 0 .7rem;display:flex;gap:.5rem;align-items:stretch}
+.searchrow input{flex:1;min-width:0;font-family:var(--sans);font-size:.9rem;padding:.55rem .7rem;
   background:var(--paper-2);color:var(--ink);border:1px solid var(--rule);border-radius:12px}
 .searchrow input:focus{outline:none;border-color:var(--blue);box-shadow:0 0 0 3px var(--green-wash)}
+.sortwrap{position:relative;flex:0 0 auto}
+.sortbtn{height:100%;white-space:nowrap}
+.sortmenu.filtermenu{left:auto;right:0;min-width:200px}
 
 /* ---------- bubble chart ---------- */
 .mapwrap{position:relative;border:1px solid var(--rule);background:var(--paper-2);
@@ -424,7 +427,16 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
   </section>
 
   <section id="viewList" style="display:none">
-    <div class="searchrow"><input id="search" type="search" placeholder="Search ticker or name" autocomplete="off"></div>
+    <div class="searchrow">
+      <input id="search" type="search" placeholder="Search ticker, name or sector" autocomplete="off">
+      <div class="sortwrap" id="sortWrap">
+        <button class="filterbtn sortbtn" id="sortBtn" aria-haspopup="true" aria-expanded="false">
+          <span id="sortLabel">Cheapest first</span>
+          <svg class="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"></path></svg>
+        </button>
+        <div class="filtermenu sortmenu" id="sortMenu"></div>
+      </div>
+    </div>
     <div class="ledger" id="ledger"></div>
   </section>
 
@@ -672,7 +684,7 @@ var BLOCKED = {"Financials":"Banks and insurers — EV is meaningless",
 var CYCLICAL = {"Materials":1,"Energy":1};
 var ZONE_MAX = 8;
 
-var data = [], cfg = { proxy:"", auto:false, tab:"map", hidden:[], showEx:false, lastSync:null };
+var data = [], cfg = { proxy:"", auto:false, tab:"map", hidden:[], showEx:false, lastSync:null, sortBy:"multiple" };
 var openId = null, pinnedId = null, pasteOpen = null, busy = false;
 var lastDeleted = null, undoTimer = null;
 
@@ -834,7 +846,8 @@ function searched(c){
   var q = (document.getElementById("search").value || "").trim().toLowerCase();
   if (!q) return true;
   return (c.tkr || "").toLowerCase().indexOf(q) >= 0 ||
-         (c.co || "").toLowerCase().indexOf(q) >= 0;
+         (c.co || "").toLowerCase().indexOf(q) >= 0 ||
+         (c.sector || "").toLowerCase().indexOf(q) >= 0;
 }
 function scoreAll(){
   return data.map(function(c){
@@ -1158,6 +1171,50 @@ var checkSVG = '<svg viewBox="0 0 24 24"><path d="M5 13l4 4 10-10"></path></svg>
 
 var filterDraft = null;
 
+/* ---------- sort ---------- */
+var SORTS = [
+  { k:"multiple", label:"Cheapest first" },
+  { k:"multiple_desc", label:"Priciest first" },
+  { k:"netdebt", label:"Net debt (lowest)" },
+  { k:"mcap", label:"Market cap (largest)" },
+  { k:"name", label:"Name (A–Z)" },
+  { k:"sector", label:"Sector (A–Z)" }
+];
+function sortComparator(key){
+  switch (key){
+    case "multiple_desc": return function(a,b){ return b.m - a.m; };
+    case "netdebt": return function(a,b){ return netDebt(a.c) - netDebt(b.c); };
+    case "mcap": return function(a,b){ return mcap(b.c) - mcap(a.c); };
+    case "name": return function(a,b){ return (a.c.co || "").localeCompare(b.c.co || ""); };
+    case "sector": return function(a,b){
+        return (a.c.sector || "").localeCompare(b.c.sector || "") || a.m - b.m; };
+    default: return function(a,b){ return a.m - b.m; };
+  }
+}
+function sortMenuHTML(){
+  return SORTS.map(function(s){
+    return '<button class="filmitem' + (cfg.sortBy === s.k ? ' on' : '') + '" data-sort="' + s.k + '">' +
+      '<span class="fcheck">' + checkSVG + '</span><span class="flabel">' + esc(s.label) + '</span></button>';
+  }).join("");
+}
+function setSortOpen(open){
+  document.getElementById("sortMenu").classList.toggle("open", open);
+  document.getElementById("sortBtn").setAttribute("aria-expanded", open);
+  if (open) document.getElementById("sortMenu").innerHTML = sortMenuHTML();
+}
+document.getElementById("sortBtn").addEventListener("click", function(e){
+  e.stopPropagation();
+  setSortOpen(!document.getElementById("sortMenu").classList.contains("open"));
+});
+document.getElementById("sortMenu").addEventListener("click", function(e){
+  var b = e.target.closest("button[data-sort]"); if (!b) return;
+  cfg.sortBy = b.dataset.sort;
+  saveCfg();
+  document.getElementById("sortLabel").textContent = (SORTS.filter(function(s){ return s.k === cfg.sortBy; })[0] || SORTS[0]).label;
+  setSortOpen(false);
+  paint();
+});
+
 function presentSectors(d){
   var counts = {};
   data.forEach(function(c){ counts[c.sector] = (counts[c.sector] || 0) + 1; });
@@ -1254,6 +1311,7 @@ document.getElementById("sfMenu").addEventListener("click", function(e){
 });
 document.addEventListener("click", function(e){
   if (!e.target.closest("#sectorFilter")) setFilterOpen(false);
+  if (!e.target.closest("#sortWrap")) setSortOpen(false);
 });
 
 function setTab(t){
@@ -1985,8 +2043,11 @@ function renderList(scored){
     return;
   }
   var pool = scored.filter(function(s){ return visible(s.c) && searched(s.c); });
-  var ranked = pool.filter(function(s){ return s.m != null; }).sort(function(a,b){ return a.m - b.m; });
+  var key = cfg.sortBy || "multiple";
+  var cmp = sortComparator(key);
+  var ranked = pool.filter(function(s){ return s.m != null; }).sort(cmp);
   var rest = pool.filter(function(s){ return s.m == null; });
+  if (key !== "multiple" && key !== "multiple_desc") rest.sort(cmp);
 
   var html = "";
   ranked.forEach(function(s, i){
@@ -2453,9 +2514,11 @@ Promise.all([store.get(KEY), store.get(CFGKEY)]).then(function(r){
     cfg.hidden = Array.isArray(r[1].hidden) ? r[1].hidden : [];
     cfg.showEx = !!r[1].showEx;
     cfg.lastSync = r[1].lastSync || null;
+    cfg.sortBy = SORTS.some(function(s){ return s.k === r[1].sortBy; }) ? r[1].sortBy : "multiple";
   }
   document.getElementById("proxyUrl").value = cfg.proxy;
   document.getElementById("btnAutoToggle").textContent = "Auto-refresh: " + (cfg.auto ? "on" : "off");
+  document.getElementById("sortLabel").textContent = (SORTS.filter(function(s){ return s.k === cfg.sortBy; })[0] || SORTS[0]).label;
   renderSyncStatus();
   setTab(cfg.tab);
   syncNavHeight();
