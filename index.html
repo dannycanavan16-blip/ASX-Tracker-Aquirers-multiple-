@@ -229,6 +229,34 @@ button.mini{font-size:.72rem;padding:.4rem .7rem}
 .progress #progressTxt{white-space:nowrap}
 
 /* ---------- ledger ---------- */
+/* ---------- "what changed" strip + digest ---------- */
+/* Lives above the ledger inside the scrolling area, so it costs no pinned-header space
+   and scrolls away once read. */
+.digeststrip{display:none;align-items:center;gap:.6rem;margin-bottom:.7rem;padding:.6rem .8rem;
+  background:var(--paper-2);border:1px solid var(--rule);border-radius:14px;
+  box-shadow:var(--shadow-card)}
+.digeststrip.on{display:flex}
+.digeststrip .open{flex:1;text-align:left;background:transparent;border:0;box-shadow:none;
+  padding:0;font-family:var(--sans);font-size:.82rem;font-weight:600;color:var(--ink);cursor:pointer}
+.digeststrip .open:hover{background:transparent;color:var(--blue)}
+.digeststrip .open .sub{display:block;font-weight:400;font-size:.72rem;color:var(--ink-soft);margin-top:.1rem}
+.digeststrip .dismiss{flex:0 0 auto;background:transparent;border:0;box-shadow:none;
+  color:var(--ink-soft);font-size:.95rem;padding:.25rem .4rem;cursor:pointer}
+.digeststrip .dismiss:hover{background:transparent;color:var(--oxide)}
+.dgroup{margin-bottom:1.1rem}
+.dgroup .lab{display:block;margin-bottom:.45rem}
+.drow{display:grid;grid-template-columns:2.1rem 1fr auto;gap:.7rem;align-items:center;
+  padding:.5rem 0;border-bottom:1px solid var(--rule)}
+.drow:last-child{border-bottom:0}
+.drow .avatar{width:2.1rem;height:2.1rem}
+.drow .who .tkr{font-size:.9rem}
+.drow .who .co{font-size:.76rem}
+.drow .move{text-align:right;white-space:nowrap;font-family:var(--sans);font-weight:700;font-size:.9rem}
+.drow .move .arrow{font-weight:400;color:var(--ink-soft);margin:0 .15rem}
+.drow .move .pct{display:block;font-size:.72rem;font-weight:600;margin-top:.1rem}
+.drow .move .pct.down{color:var(--green)}
+.drow .move .pct.up{color:var(--oxide)}
+
 .ledger{background:var(--paper-2);border:1px solid var(--rule);border-radius:18px;
   box-shadow:var(--shadow-card);overflow:hidden}
 .rowwrap{position:relative;overflow:hidden;border-bottom:1px solid var(--rule)}
@@ -491,6 +519,10 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
   </section>
 
   <section id="viewList" style="display:none">
+    <div class="digeststrip" id="digestStrip">
+      <button class="open" id="btnDigestOpen"></button>
+      <button class="dismiss" id="btnDigestDismiss" aria-label="Dismiss">✕</button>
+    </div>
     <div class="ledger" id="ledger"></div>
   </section>
 
@@ -536,6 +568,7 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
     <button id="btnStarter">Load ASX names</button>
     <button id="btnCompare">Compare companies</button>
     <button id="btnSectorStats">Sector stats</button>
+    <button id="btnWhatsChanged">What's changed</button>
     <button id="btnImport">Import CSV</button>
     <button id="btnExport">Export CSV</button>
     <button class="ghost" id="btnClear">Clear all</button>
@@ -683,6 +716,15 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
   <div id="sectorStatsList"></div>
 </div>
 
+<div class="sheet-backdrop" id="digestBackdrop"></div>
+<div class="sheet" id="digestSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-head"><h2>What's changed</h2>
+    <button class="sheet-x" id="btnDigestClose" aria-label="Close">✕</button></div>
+  <p class="hint" id="digestWindow" style="margin:0 0 1rem"></p>
+  <div id="digestBody"></div>
+</div>
+
 <div class="sheet-backdrop" id="advBackdrop"></div>
 <div class="sheet" id="advSheet">
   <div class="sheet-handle"></div>
@@ -762,7 +804,7 @@ var CYCLICAL = {"Materials":1,"Energy":1};
 var ZONE_MAX = 8;
 
 var data = [], cfg = { proxy:"", auto:false, tab:"map", hidden:[], showEx:false, lastSync:null,
-  sortBy:"multiple", filters:{ mult:"any", debt:"any", size:"any" }, presets:[] };
+  sortBy:"multiple", filters:{ mult:"any", debt:"any", size:"any" }, presets:[], lastSeen:"" };
 var openId = null, pinnedId = null, pasteOpen = null, busy = false;
 var lastDeleted = null, undoTimer = null;
 
@@ -871,6 +913,61 @@ function snapshotMultiple(c){
     if (c.history.length > HISTORY_CAP) c.history.shift();
   }
 }
+/* ---------- "what changed" digest ---------- */
+var DIGEST_MOVERS = 5;
+var DIGEST_MIN_MOVE = 0.05; /* ignore sub-5% drift — noise, not news */
+
+function todayISO(){ return new Date().toISOString().slice(0,10); }
+
+/* Compares each company's latest snapshot against the last one taken on or before
+   cfg.lastSeen. History is only written when prices/financials are actually fetched, so
+   this reports movement between samples — never between calendar dates it never sampled. */
+function digestData(){
+  var since = cfg.lastSeen || "";
+  var entered = [], left = [], movers = [], latestDate = "", priorDate = "";
+
+  data.forEach(function(c){
+    var hist = c.history || [];
+    if (hist.length < 2) return;
+    var latest = hist[hist.length - 1];
+    /* Nothing sampled since the last visit — without this, dismissing would only hide the
+       strip until the next repaint, since an older entry is still findable to compare to. */
+    if (since && latest.d <= since) return;
+
+    var prior = null;
+    for (var i = hist.length - 2; i >= 0; i--){
+      if (!since || hist[i].d <= since){ prior = hist[i]; break; }
+    }
+    /* Window predates everything we hold — fall back to the oldest sample we do have,
+       rather than dropping the company from the report entirely. */
+    if (!prior) prior = hist[0];
+    if (prior === latest || prior.d === latest.d) return;
+
+    if (latest.d > latestDate) latestDate = latest.d;
+    if (!priorDate || prior.d < priorDate) priorDate = prior.d;
+
+    var rec = { c:c, from:prior.m, to:latest.m,
+      pct: prior.m ? (latest.m - prior.m) / prior.m : 0 };
+
+    if (prior.m >= ZONE_MAX && latest.m < ZONE_MAX) entered.push(rec);
+    else if (prior.m < ZONE_MAX && latest.m >= ZONE_MAX) left.push(rec);
+    else if (Math.abs(rec.pct) >= DIGEST_MIN_MOVE) movers.push(rec);
+  });
+
+  /* Favourites first — those are the ones being tracked deliberately. */
+  function rank(a, b){
+    if (!!b.c.fav !== !!a.c.fav) return (b.c.fav ? 1 : 0) - (a.c.fav ? 1 : 0);
+    return Math.abs(b.pct) - Math.abs(a.pct);
+  }
+  entered.sort(rank); left.sort(rank);
+  movers.sort(rank);
+  movers = movers.slice(0, DIGEST_MOVERS);
+
+  return { entered:entered, left:left, movers:movers,
+    latestDate:latestDate, priorDate:priorDate,
+    total: entered.length + left.length + movers.length };
+}
+
 function sparklineSVG(history, w, h){
   var hist = (history || []).slice(-60);
   if (hist.length < 2) return "";
@@ -1669,6 +1766,93 @@ document.getElementById("sectorStatsList").addEventListener("click", function(e)
   setTab("list");
 });
 
+/* ---------- "what changed" digest ---------- */
+function fmtShortDate(iso){
+  if (!iso) return "";
+  var p = String(iso).split("-");
+  var d = new Date(Number(p[0]), Number(p[1]) - 1, Number(p[2]));
+  return isFinite(d.getTime())
+    ? d.toLocaleDateString([], { day:"numeric", month:"short" })
+    : iso;
+}
+function digestRowHTML(r){
+  var down = r.pct < 0;
+  return '<div class="drow">' + avatarHTML(r.c) +
+    '<div class="who name-block">' +
+      '<span class="tkr">' + esc(r.c.tkr || "—") + '</span>' +
+      '<span class="co">' + esc(r.c.co) + '</span>' +
+      (r.c.fav ? ' <span class="notemark" title="Favourite">★</span>' : '') +
+    '</div>' +
+    '<div class="move tnum">' + fmtX(r.from) +
+      '<span class="arrow">→</span>' + fmtX(r.to) +
+      '<span class="pct ' + (down ? "down" : "up") + '">' +
+        (down ? "" : "+") + Math.round(r.pct * 100) + '%</span>' +
+    '</div></div>';
+}
+function digestGroupHTML(label, rows){
+  if (!rows.length) return "";
+  return '<div class="dgroup"><span class="lab">' + esc(label) + '</span>' +
+    rows.map(digestRowHTML).join("") + '</div>';
+}
+function renderDigestStrip(){
+  var strip = document.getElementById("digestStrip");
+  var d = digestData();
+  if (!d.total){ strip.classList.remove("on"); return; }
+  var bits = [];
+  if (d.entered.length) bits.push(d.entered.length + " entered the value zone");
+  if (d.left.length) bits.push(d.left.length + " left it");
+  if (d.movers.length) bits.push(d.movers.length + " big " + (d.movers.length === 1 ? "mover" : "movers"));
+  document.getElementById("btnDigestOpen").innerHTML =
+    esc(bits.join(" · ")) +
+    '<span class="sub">Since ' + esc(fmtShortDate(d.priorDate)) + ' — tap for detail</span>';
+  strip.classList.add("on");
+}
+function openDigest(){
+  var d = digestData();
+  var body = document.getElementById("digestBody");
+  var win = document.getElementById("digestWindow");
+
+  if (!d.total){
+    /* Distinguish "nothing moved" from "nothing was sampled" — an empty list with no
+       explanation reads as broken. */
+    win.textContent = cfg.lastSeen
+      ? "Nothing new since " + fmtShortDate(cfg.lastSeen) + "."
+      : "Nothing to compare yet.";
+    body.innerHTML = '<p class="hint">This compares each company against the last time its figures ' +
+      'were pulled, so it only updates after a <b>Refresh prices</b> or <b>Fetch all financials</b>. ' +
+      'Come back after a refresh on a later day.</p>';
+  } else {
+    win.textContent = "Comparing " + fmtShortDate(d.priorDate) + " to " +
+      fmtShortDate(d.latestDate) + " — the snapshots either side of your last visit.";
+    body.innerHTML =
+      digestGroupHTML("Entered the value zone", d.entered) +
+      digestGroupHTML("Left the value zone", d.left) +
+      digestGroupHTML("Biggest movers", d.movers);
+  }
+  document.getElementById("digestSheet").classList.add("open");
+  document.getElementById("digestBackdrop").classList.add("open");
+}
+function closeDigest(){
+  document.getElementById("digestSheet").classList.remove("open");
+  document.getElementById("digestBackdrop").classList.remove("open");
+}
+/* Only an explicit view or dismiss advances the window — merely opening the app must not
+   silently discard a report the user never saw. */
+function markDigestSeen(){
+  cfg.lastSeen = todayISO();
+  saveCfg();
+  renderDigestStrip();
+}
+document.getElementById("btnDigestOpen").addEventListener("click", function(){
+  openDigest(); markDigestSeen();
+});
+document.getElementById("btnDigestDismiss").addEventListener("click", markDigestSeen);
+document.getElementById("btnDigestClose").addEventListener("click", closeDigest);
+document.getElementById("digestBackdrop").addEventListener("click", closeDigest);
+document.getElementById("btnWhatsChanged").addEventListener("click", function(){
+  closeSheet(); openDigest();
+});
+
 /* ---------- advanced filters ---------- */
 /* Staged draft, committed only on Apply — same pattern as the sector dropdown, and for
    the same reason: mutating the clicked chip's own class in place instead of re-rendering
@@ -2309,7 +2493,7 @@ function paint(){
   if (cfg.tab === "map"){ renderMap(scored); renderReadout(scored); }
   else if (cfg.tab === "favs") renderFavsView(scored);
   else if (cfg.tab === "portfolio") renderPortfolio();
-  else renderList(scored);
+  else { renderList(scored); renderDigestStrip(); }
 }
 
 function save(){ store.set(KEY, data); }
@@ -2762,6 +2946,7 @@ Promise.all([store.get(KEY), store.get(CFGKEY)]).then(function(r){
       cfg.filters[g] = FILTER_BANDS[g].some(function(b){ return b.k === sf[g]; }) ? sf[g] : "any";
     });
     cfg.presets = Array.isArray(r[1].presets) ? r[1].presets : [];
+    cfg.lastSeen = /^\d{4}-\d{2}-\d{2}$/.test(r[1].lastSeen) ? r[1].lastSeen : "";
   }
   document.getElementById("proxyUrl").value = cfg.proxy;
   document.getElementById("btnAutoToggle").textContent = "Auto-refresh: " + (cfg.auto ? "on" : "off");
