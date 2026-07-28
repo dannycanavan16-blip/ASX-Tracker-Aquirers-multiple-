@@ -257,7 +257,7 @@ button.mini{font-size:.72rem;padding:.4rem .7rem}
 .drow .move .pct.down{color:var(--green)}
 .drow .move .pct.up{color:var(--oxide)}
 
-/* ---------- basket builder ---------- */
+/* ---------- monthly plan ---------- */
 .bkt-input{display:flex;gap:.5rem;align-items:center;margin-bottom:.3rem}
 .bkt-input input{flex:1}
 .bkt-summary{display:flex;flex-wrap:wrap;gap:.9rem;padding:.8rem .9rem;margin:.2rem 0 1rem;
@@ -280,6 +280,33 @@ button.mini{font-size:.72rem;padding:.4rem .7rem}
 .bktrow .qty .act.buy{color:var(--blue)}
 .bktrow .qty .act.sell{color:var(--oxide)}
 .bktrow .qty .act.ok{color:var(--green)}
+.planrules{border:1px solid var(--rule);border-radius:14px;background:var(--paper);
+  padding:.6rem .9rem;margin:0 0 1rem}
+.planrules summary{font-family:var(--cond);font-weight:600;font-size:.72rem;letter-spacing:.05em;
+  text-transform:uppercase;color:var(--ink-soft);cursor:pointer}
+.planrules ul{margin:.6rem 0 .2rem;padding-left:1.1rem}
+.planrules li{font-size:.8rem;line-height:1.5;color:var(--ink-soft);margin-bottom:.35rem}
+.planrules li b{color:var(--ink)}
+.planbanner{display:flex;gap:.7rem;align-items:center;justify-content:space-between;
+  padding:.7rem .9rem;margin:0 0 1rem;border:1px solid var(--rule);border-radius:14px;
+  background:var(--paper)}
+.planbanner.due{border-color:var(--ochre);background:rgba(180,83,9,.07)}
+.planbanner b{display:block;font-family:var(--sans);font-size:.86rem;color:var(--ink)}
+.planbanner span{display:block;font-size:.72rem;color:var(--ink-soft);margin-top:.1rem}
+.planbanner .mini{flex:0 0 auto}
+.planwarn{font-size:.78rem;line-height:1.5;color:var(--ink);background:rgba(180,83,9,.09);
+  border:1px solid var(--ochre);border-radius:12px;padding:.6rem .8rem;margin:0 0 1rem}
+.planexit{padding:.2rem 0 .5rem;border-bottom:1px solid var(--rule)}
+.planexit:last-child{border-bottom:0}
+.planexit .bktrow{border-bottom:0;padding-bottom:.2rem}
+.planadvice{font-size:.78rem;line-height:1.45;margin:.15rem 0 0;padding-left:2.8rem;font-weight:600}
+.planadvice span{display:block;font-weight:400;color:var(--ink-soft);margin-top:.15rem}
+.planadvice.hold{color:var(--ochre)}
+.planadvice.sell{color:var(--oxide)}
+.planadvice.warn{color:var(--ochre);font-weight:400}
+.pf-sec{font-family:var(--cond);font-weight:600;font-size:.68rem;letter-spacing:.06em;
+  text-transform:uppercase;color:var(--ink-soft);margin:1.4rem 0 .5rem}
+.rowwrap.closed{opacity:.75}
 
 .ledger{background:var(--paper-2);border:1px solid var(--rule);border-radius:18px;
   box-shadow:var(--shadow-card);overflow:hidden}
@@ -363,6 +390,7 @@ textarea[data-k="notes"]{min-height:150px}
 .lotrow:last-child{border-bottom:0}
 .lotrow.lothead{font-family:var(--cond);font-weight:600;font-size:.63rem;letter-spacing:.05em;
   text-transform:uppercase;color:var(--ink-soft);background:var(--paper)}
+.lotrow.sell .lotcell{color:var(--oxide)}
 .lotcell{font-variant-numeric:tabular-nums}
 .lotdel{background:transparent;border:0;box-shadow:none;color:var(--ink-soft);font-size:1.05rem;
   padding:0;width:auto;height:auto;line-height:1;justify-self:end}
@@ -372,8 +400,8 @@ textarea[data-k="notes"]{min-height:150px}
 .portfolio-total{font-family:var(--serif);font-weight:700;font-size:2rem;color:var(--ink);
   font-variant-numeric:tabular-nums}
 .portfolio-sub{font-size:.85rem;font-weight:600;margin-top:.3rem;font-variant-numeric:tabular-nums}
-.portfolio-sub.cheap{color:var(--green)}
-.portfolio-sub.rich{color:var(--oxide)}
+.portfolio-sub.cheap,.portfolio-total.cheap{color:var(--green)}
+.portfolio-sub.rich,.portfolio-total.rich{color:var(--oxide)}
 .spark{display:block;margin-top:.35rem;margin-left:auto;width:56px;height:18px}
 .spark-wrap{margin-top:.4rem}
 .spark-wrap svg{width:100%;height:64px;display:block}
@@ -593,7 +621,7 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
     <button id="btnCompare">Compare companies</button>
     <button id="btnSectorStats">Sector stats</button>
     <button id="btnWhatsChanged">What's changed</button>
-    <button id="btnBasket">Basket builder</button>
+    <button id="btnBasket">Monthly plan</button>
     <button id="btnImport">Import CSV</button>
     <button id="btnExport">Export CSV</button>
     <button class="ghost" id="btnClear">Clear all</button>
@@ -660,8 +688,15 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
     <p>Star a company and it's opted in to a daily email the moment its Acquirer's Multiple newly drops under 8× — no separate settings screen, since starring is already "I'm tracking this." The check runs on your proxy's own schedule, not in this browser tab, so it still catches it while you're not in the app. It depends on cloud backup: the checker only ever sees your last backup, so back up at least once, and again any time you star or unstar a company, for the alert to reflect it. See <code>apps-script-alerts-addon.gs.txt</code> in the project files for the code and setup — paste it into the same script (no dispatcher edit needed this time, since it runs on a schedule instead of a URL request), run <code>checkValueZoneAlerts</code> once by hand to grant it permission to send mail, then add a time-driven trigger for it from the clock icon in the Apps Script sidebar. You're only emailed the first time a company crosses under 8×, not every day it stays there; if it later falls out and comes back in, that counts as a fresh crossing.</p>
 
     <h3>Portfolio</h3>
-    <p>Open any company and add a <b>buy lot</b> — date, shares, price paid — under its Portfolio section. Add as many lots as you like for the same company; the app averages your cost across all of them. Once a company has at least one lot, it shows up in the <b>Portfolio</b> tab with its current value and unrealised profit or loss, and the tab's summary totals everything you hold. Nothing here is sent anywhere — it's stored the same way as the rest of your data.</p>
+    <p>Open any company and add a <b>buy</b> — date, shares, price paid — under its Portfolio section. Add as many as you like for the same company; the app averages your cost across all of them. Once a company has at least one buy, it shows up in the <b>Portfolio</b> tab with its current value and unrealised profit or loss, and the tab's summary totals everything you hold. Nothing here is sent anywhere — it's stored the same way as the rest of your data.</p>
+    <p><b>Selling</b> takes the whole position in one go — that's how this strategy exits, so there's no share count to retype, just the price. The sale is recorded alongside your buys rather than erasing them, so realised profit survives and the position stays visible under <b>Closed</b> with its result. If the position is in profit and has dropped out of the ranking, you'll be told the date it reaches a year and a day first; you can still sell anyway.</p>
     <p>The <b>today</b> figures need one more thing from your proxy: <code>previousClose</code> added to the price-quote response. Without it, the app still shows total value and all-time profit/loss, just not the day's move.</p>
+
+    <h3>Monthly plan</h3>
+    <p>Under <b>More</b>. It takes the ranking and your holdings and works out the two things the strategy actually asks each month: what to buy, and what has stopped being cheap.</p>
+    <p><b>Buying.</b> While you own fewer companies than you're aiming for, the month's contribution opens new positions at $500 each rather than dusting every name — the ASX won't accept a first purchase in a stock below roughly $500, so $1,000 opens two positions a month, not twenty slivers. Once all the positions are open the same money goes wherever the weights have drifted lightest, which keeps things equal weight without ever selling to rebalance.</p>
+    <p><b>Selling.</b> The only trigger is a holding dropping out of the target — never how long you've held it, never how far it has run. It could be nobody one quarter and five the next. Where a dropped holding is in profit, the plan recommends holding to a year and a day so the taxable gain is halved, and shows the date. At a loss there's no discount to wait for, so it says sell.</p>
+    <p>Holdings that don't rank at all — a bank, or anything missing figures — are listed separately rather than counted as exits, because a missing multiple isn't the same as a company that got expensive. Anything carrying <b>Check figures</b> is flagged too: a stale multiple can drop a company out of the ranking on its own.</p>
 
     <h3>Fetch all financials</h3>
     <p>Works through the whole list one company at a time, roughly 1.3 seconds apart so Yahoo does not throttle you. It saves after every company, so stopping it or losing the page costs you nothing — start it again and it picks up where it left off. It skips banks and REITs, and skips anything already pulled in the last month. Come results season, run it again and it refreshes the lot. Smaller companies often come back empty — Yahoo's coverage thins out down the list. Those are the ones to paste by hand.</p>
@@ -744,18 +779,29 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
 <div class="sheet-backdrop" id="basketBackdrop"></div>
 <div class="sheet" id="basketSheet">
   <div class="sheet-handle"></div>
-  <div class="sheet-head"><h2>Basket builder</h2>
+  <div class="sheet-head"><h2>Monthly plan</h2>
     <button class="sheet-x" id="btnBasketClose" aria-label="Close">✕</button></div>
-  <p class="hint" style="margin:0 0 .9rem">An equal-weighted basket off the top of the ranking — the way this strategy is meant to be run, rather than a bet on the cheapest single name. Arithmetic only: nothing is bought, sold or saved to your portfolio.</p>
+  <p class="hint" style="margin:0 0 .9rem">What to buy this month and what has stopped being cheap. Arithmetic only: nothing is bought, sold or saved to your portfolio.</p>
+
+  <details class="planrules">
+    <summary>The strategy</summary>
+    <ul>
+      <li>Own the <b>cheapest names by Acquirer's multiple</b>, equal weight.</li>
+      <li><b>Top up monthly.</b> A first purchase in any stock has to clear the ASX $500 minimum, so early on the money opens two positions rather than dusting all of them.</li>
+      <li><b>Review quarterly.</b> The only reason to sell is a company dropping out of the target — never how long you've held it, never how far it has run.</li>
+      <li><b>Sell whole positions</b>, never part of one.</li>
+      <li>If something drops out while <b>in profit</b>, holding to a <b>year and a day</b> halves the taxable gain, so wait where that is still ahead. At a loss there is nothing to wait for.</li>
+    </ul>
+  </details>
 
   <div class="fgroup">
-    <span class="lab">Basket size</span>
+    <span class="lab">How many companies to own</span>
     <div class="fchips" id="basketSizes"></div>
   </div>
   <div class="fgroup">
-    <span class="lab">Capital to invest</span>
+    <span class="lab">Adding this month</span>
     <div class="bkt-input">
-      <input id="basketCapital" inputmode="decimal" placeholder="e.g. 20000">
+      <input id="basketCapital" inputmode="decimal" placeholder="e.g. 1000">
     </div>
   </div>
 
@@ -851,7 +897,7 @@ var ZONE_MAX = 8;
 
 var data = [], cfg = { proxy:"", auto:false, tab:"map", hidden:[], showEx:false, lastSync:null,
   sortBy:"multiple", filters:{ mult:"any", debt:"any", size:"any", data:"any" }, presets:[], lastSeen:"",
-  basket:{ size:20, capital:"" } };
+  basket:{ size:20, capital:"", lastRebalance:"" } };
 var openId = null, pinnedId = null, pasteOpen = null, busy = false;
 var lastDeleted = null, undoTimer = null;
 
@@ -904,16 +950,110 @@ function ccyClash(c){
 }
 
 /* ===================== portfolio ===================== */
-function lotsShares(c){ return (c.lots||[]).reduce(function(s,l){ return s + num(l.shares); }, 0); }
-function lotsCost(c){ return (c.lots||[]).reduce(function(s,l){ return s + num(l.shares)*num(l.price); }, 0); }
-function avgCost(c){ var sh = lotsShares(c); return sh > 0 ? lotsCost(c)/sh : 0; }
+/* ---------- calendar helpers ----------
+   Deliberately local-time rather than toISOString(): a "hold until" date shown to someone in
+   Australia must be the date they'd see on a calendar, not the UTC one, which is a day behind
+   for most of the local morning. */
+function isoOf(d){
+  return d.getFullYear() + "-" + String(d.getMonth()+1).padStart(2,"0") + "-" +
+    String(d.getDate()).padStart(2,"0");
+}
+function parseISO(s){
+  var m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(s || ""));
+  if (!m) return null;
+  var d = new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]));
+  return isFinite(d.getTime()) ? d : null;
+}
+function today0(){ var d = new Date(); d.setHours(0,0,0,0); return d; }
+function addDays(d, n){ var x = new Date(d.getTime()); x.setDate(x.getDate() + n); return x; }
+function addMonths(d, n){ var x = new Date(d.getTime()); x.setMonth(x.getMonth() + n); return x; }
+function fmtLongDate(d){
+  return d.toLocaleDateString([], { day:"numeric", month:"short", year:"numeric" });
+}
+
+/* ---------- position engine ----------
+   The lot ledger holds buys and sells. A lot with no `type` is a buy, so portfolios saved
+   before selling existed load unchanged.
+
+   Positions are only ever exited whole under this strategy, so realised profit is just
+   proceeds minus everything paid for that company — no cost-base matching method can change
+   the number. Parcels are consumed oldest-first inside this walk purely as a safety net, so
+   that a stray partial sell (a hand correction, a bad import) can't leave a negative cost
+   base. It is not a rule the app asks you to follow and never affects a whole exit. */
+function lotType(l){ return l && l.type === "sell" ? "sell" : "buy"; }
+function lotsByDate(c){
+  /* Undated lots sort first so they behave like the oldest thing on the books rather than
+     jumping ahead of a dated sell. */
+  return (c.lots || []).slice().sort(function(a, b){
+    return String(a.date || "").localeCompare(String(b.date || ""));
+  });
+}
+function positionOf(c){
+  var open = [], realised = 0, sold = 0, proceeds = 0, oversold = 0;
+  lotsByDate(c).forEach(function(l){
+    var sh = num(l.shares), pr = num(l.price);
+    if (sh <= 0) return;
+    if (lotType(l) === "buy"){ open.push({ date: l.date || "", shares: sh, price: pr }); return; }
+    sold += sh; proceeds += sh * pr;
+    var left = sh;
+    while (left > 0 && open.length){
+      var p = open[0];
+      var take = Math.min(left, p.shares);
+      realised += take * (pr - p.price);
+      p.shares -= take; left -= take;
+      if (p.shares <= 0) open.shift();
+    }
+    /* Sold more than was ever bought: count the proceeds with no cost behind them and
+       report the mismatch rather than quietly inventing a negative cost base. */
+    if (left > 0){ oversold += left; realised += left * pr; }
+  });
+  var shares = 0, cost = 0;
+  open.forEach(function(p){ shares += p.shares; cost += p.shares * p.price; });
+  return { open:open, shares:shares, cost:cost, realised:realised,
+           sold:sold, proceeds:proceeds, oversold:oversold };
+}
+function lotsShares(c){ return positionOf(c).shares; }
+function lotsCost(c){ return positionOf(c).cost; }
+function realisedPL(c){ return positionOf(c).realised; }
+function avgCost(c){ var p = positionOf(c); return p.shares > 0 ? p.cost/p.shares : 0; }
 function holdingValue(c){ return lotsShares(c) * num(c.price); }
-function unrealizedPL(c){ return holdingValue(c) - lotsCost(c); }
-function unrealizedPLPct(c){ var cost = lotsCost(c); return cost > 0 ? unrealizedPL(c)/cost*100 : 0; }
+function unrealizedPL(c){ var p = positionOf(c); return p.shares * num(c.price) - p.cost; }
+function unrealizedPLPct(c){ var p = positionOf(c); return p.cost > 0 ? (p.shares*num(c.price) - p.cost)/p.cost*100 : 0; }
 function dayChangePerShare(c){ return num(c.price) - num(c.prevClose); }
 function dayChangeValue(c){ return dayChangePerShare(c) * lotsShares(c); }
 function dayChangePct(c){ var pc = num(c.prevClose); return pc > 0 ? dayChangePerShare(c)/pc*100 : 0; }
 function isHeld(c){ return lotsShares(c) > 0; }
+function isClosed(c){ var p = positionOf(c); return p.shares <= 0 && p.sold > 0; }
+
+/* ---------- capital gains ----------
+   Tax touches this strategy in exactly one place. Nothing is ever sold on a clock — a holding
+   is sold because it stopped being cheap. But when something that has dropped out of the
+   ranking is also sitting on a profit, holding it to a year and a day halves the taxable gain,
+   so waiting is worth recommending. At a loss there is no discount to wait for. */
+var CGT_DAYS = 366;
+function cgtAdvice(c, today){
+  today = today || today0();
+  var p = positionOf(c);
+  var out = { shares:p.shares, cost:p.cost, gain:0, qualified:0, pending:0, ready:null,
+              action:"sell", undated:0 };
+  if (p.shares <= 0) return out;
+  out.gain = p.shares * num(c.price) - p.cost;
+  var ready = null;
+  p.open.forEach(function(parcel){
+    var d = parseISO(parcel.date);
+    /* No date recorded: nothing to count from, so it can't be the reason to wait. */
+    if (!d){ out.undated += parcel.shares; out.qualified += parcel.shares; return; }
+    var when = addDays(d, CGT_DAYS);
+    if (when <= today){ out.qualified += parcel.shares; return; }
+    out.pending += parcel.shares;
+    if (!ready || when < ready) ready = when;
+  });
+  out.ready = ready;
+  /* Wait only when the whole position is in profit and none of it qualifies yet. Any parcel
+     already past a year and a day means the discount is available now. */
+  out.action = (out.gain > 0 && out.qualified === 0 && ready) ? "hold" : "sell";
+  return out;
+}
 function fmtD(v){
   var neg = v < 0; v = Math.abs(v);
   return (neg?"-":"") + "$" + v.toLocaleString(undefined,{minimumFractionDigits:2,maximumFractionDigits:2});
@@ -1168,45 +1308,97 @@ function scoreAll(){
   });
 }
 
-/* ---------- basket builder ---------- */
-var BASKET_SIZES = [10, 20, 30];
+/* ---------- monthly plan ----------
+   Turns the ranking into the thing actually being run: own the N cheapest, equal weight, top
+   up every month, review every quarter, and sell only what has stopped being cheap. */
+var BASKET_SIZES = [10, 20, 30, 40];
+var MIN_PARCEL = 500;      /* ASX minimum marketable parcel — applies to a first buy only */
+var REVIEW_MONTHS = 3;
+var UNIVERSE_WARN = 0.25;  /* picking more than a quarter of what ranks isn't a deep-value screen */
 
-/* Equal-weighted basket off the top of the ranking — the way the strategy is actually run,
-   rather than a bet on the single cheapest name. Built from whatever screen is currently
-   set (filters included), so the caller must show the universe count alongside it. */
-function basketData(){
+function allocRow(s, amount, opening){
+  var price = num(s.c.price);
+  var shares = 0;
+  /* Whole shares only — the ASX has no fractions, and the rounding leftover is real money
+     so it gets reported rather than quietly dropped. */
+  if (price > 0){
+    shares = Math.floor(amount / price);
+    /* A first purchase has to clear the minimum marketable parcel, so round up to it rather
+       than proposing an order that can't be placed. */
+    if (opening) shares = Math.max(shares, Math.ceil(MIN_PARCEL / price));
+  }
+  return { s:s, c:s.c, m:s.m, price:price, amount:amount, shares:shares,
+    cost: shares * price, opening:opening, held:lotsShares(s.c), noPrice: price <= 0 };
+}
+
+function planData(){
   var size = cfg.basket.size || 20;
   var capital = num(cfg.basket.capital);
+  var today = today0();
 
   var pool = scoreAll()
     .filter(function(s){ return s.m != null && visible(s.c) && passesFilters(s); })
     .sort(function(a, b){ return a.m - b.m; });
 
   var picks = pool.slice(0, size);
-  var target = picks.length ? capital / picks.length : 0;
+  var pickIds = {}, poolIds = {}, rankOf = {};
+  picks.forEach(function(s){ pickIds[s.c.id] = true; });
+  pool.forEach(function(s, i){ poolIds[s.c.id] = s; rankOf[s.c.id] = i + 1; });
 
-  var rows = picks.map(function(s){
-    var price = num(s.c.price);
-    /* Whole shares only — you can't buy fractions on the ASX, and the rounding-down
-       leftover is real money, so it's reported rather than quietly dropped. */
-    var shares = price > 0 ? Math.floor(target / price) : 0;
-    var cost = shares * price;
-    var held = lotsShares(s.c);
-    return { s:s, c:s.c, m:s.m, price:price, shares:shares, cost:cost, held:held,
-      delta: shares - held, tooDear: price > 0 && shares === 0 && target > 0 };
-  });
+  var heldAll = data.filter(isHeld);
+  var keeps = picks.filter(function(s){ return isHeld(s.c); });
+  var gaps = picks.filter(function(s){ return !isHeld(s.c); });
 
-  var invested = rows.reduce(function(t, r){ return t + r.cost; }, 0);
+  /* The only sell signal: still ranked, but no longer near enough the top to want. A holding
+     that doesn't rank at all can't produce that signal, so it's reported separately instead
+     of being mistaken for an exit. */
+  var exits = heldAll.filter(function(c){ return poolIds[c.id] && !pickIds[c.id]; })
+    .map(function(c){
+      return { c:c, s:poolIds[c.id], adv:cgtAdvice(c, today), stale:needsFigureCheck(c),
+        value:holdingValue(c), rank: rankOf[c.id], total: pool.length };
+    })
+    .sort(function(a, b){ return b.value - a.value; });
+  var unranked = heldAll.filter(function(c){ return !poolIds[c.id]; });
 
-  /* The other half of a rebalance: what you hold that the ranking no longer wants. */
-  var ids = {};
-  picks.forEach(function(s){ ids[s.c.id] = true; });
-  var exits = data.filter(function(c){ return isHeld(c) && !ids[c.id]; })
-    .sort(function(a, b){ return holdingValue(b) - holdingValue(a); });
+  var buys = [], mode = gaps.length ? "build" : "topup", shortOfMin = false;
+  if (capital > 0 && picks.length){
+    if (gaps.length){
+      /* Building the basket: the contribution buys as many new positions as it can at the
+         minimum parcel each, so $1,000 opens two rather than twenty unplaceable slivers. */
+      var k = Math.min(Math.floor(capital / MIN_PARCEL), gaps.length);
+      if (k < 1) shortOfMin = true;
+      else {
+        var each = capital / k;
+        buys = gaps.slice(0, k).map(function(s){ return allocRow(s, each, true); });
+      }
+    } else if (keeps.length){
+      /* Fully built: the month's money goes where the weights have drifted lightest, which
+         keeps it equal weight without ever having to sell to rebalance. */
+      var totalVal = keeps.reduce(function(t, s){ return t + holdingValue(s.c); }, 0);
+      var target = (totalVal + capital) / keeps.length;
+      var shorts = keeps.map(function(s){ return Math.max(0, target - holdingValue(s.c)); });
+      var totalShort = shorts.reduce(function(t, v){ return t + v; }, 0);
+      buys = keeps.map(function(s, i){
+        var amt = totalShort > 0 ? capital * shorts[i]/totalShort : capital/keeps.length;
+        return allocRow(s, amt, false);
+      }).filter(function(r){ return r.shares > 0; })
+        .sort(function(a, b){ return b.cost - a.cost; });
+    }
+  }
+  var invested = buys.reduce(function(t, r){ return t + r.cost; }, 0);
 
-  return { rows:rows, exits:exits, target:target, capital:capital,
-    invested:invested, remainder: capital - invested,
-    universe: pool.length, size:size, short: picks.length < size };
+  var lastRev = parseISO(cfg.basket.lastRebalance);
+  var nextRev = lastRev ? addMonths(lastRev, REVIEW_MONTHS) : null;
+
+  return { picks:picks, keeps:keeps, gaps:gaps, buys:buys, exits:exits, unranked:unranked,
+    mode:mode, shortOfMin:shortOfMin, capital:capital, invested:invested,
+    remainder: capital - invested, size:size, universe: pool.length,
+    short: picks.length < size,
+    /* Measured against what you'd actually end up owning, not the target — with fewer
+       companies ranked than the target, the target isn't the number that matters. */
+    thin: pool.length > 0 && picks.length/pool.length > UNIVERSE_WARN,
+    held: heldAll.length, lastRev:lastRev, nextRev:nextRev,
+    reviewDue: !lastRev || nextRev <= today };
 }
 
 /* ===================== Yahoo paste parser ===================== */
@@ -1904,72 +2096,167 @@ document.getElementById("sectorStatsList").addEventListener("click", function(e)
   setTab("list");
 });
 
-/* ---------- basket builder ---------- */
+/* ---------- monthly plan ---------- */
 function basketSizesHTML(){
   return BASKET_SIZES.map(function(n){
     return '<button class="fchip' + (cfg.basket.size === n ? ' on' : '') +
       '" data-bsize="' + n + '">' + n + ' names</button>';
   }).join("");
 }
-function basketRowHTML(r){
-  var act, cls;
-  if (r.tooDear){ act = "share costs more than the target"; cls = ""; }
-  else if (r.delta > 0){ act = "buy " + r.delta; cls = "buy"; }
-  else if (r.delta < 0){ act = "sell " + Math.abs(r.delta); cls = "sell"; }
-  else { act = r.shares ? "already held" : "—"; cls = r.shares ? "ok" : ""; }
+function planWho(c, meta){
+  return avatarHTML(c) +
+    '<div class="who name-block">' +
+      '<span class="tkr">' + esc(c.tkr || "—") + '</span>' +
+      '<span class="co">' + esc(c.co) + '</span>' +
+      (meta ? '<div class="meta tnum">' + meta + '</div>' : '') +
+    '</div>';
+}
+function buyRowHTML(r){
+  var act = r.noPrice ? "no price yet" : (r.opening ? "open position" : "top up");
+  var cls = r.noPrice ? "" : "buy";
   var flags = r.s.a.flags.filter(function(f){ return f.k === "warn" || f.k === "stop"; })
     .map(function(f){ return esc(f.t); }).join(" · ");
-  return '<div class="bktrow">' + avatarHTML(r.c) +
-    '<div class="who name-block">' +
-      '<span class="tkr">' + esc(r.c.tkr || "—") + '</span>' +
-      '<span class="co">' + esc(r.c.co) + '</span>' +
-      '<div class="meta tnum">' + fmtX(r.m) + ' · ' + fmtD(r.price) +
-        (flags ? ' · ' + flags : '') + '</div>' +
-    '</div>' +
-    '<div class="qty tnum"><span class="sh">' + r.shares + ' sh</span>' +
+  return '<div class="bktrow">' +
+    planWho(r.c, fmtX(r.m) + ' · ' + fmtD(r.price) + (flags ? ' · ' + flags : '')) +
+    '<div class="qty tnum"><span class="sh">' + r.shares.toLocaleString() + ' sh</span>' +
       '<span class="amt">' + fmtD(r.cost) + '</span>' +
       '<span class="act ' + cls + '">' + esc(act) + '</span>' +
     '</div></div>';
 }
+/* One line per exit saying what to do with it, because "no longer cheap" and "sell today"
+   are not the same thing once there's a gain on the position. */
+function exitAdviceHTML(x){
+  var a = x.adv;
+  if (a.action === "hold"){
+    var parts = ['Hold until ' + fmtLongDate(a.ready)];
+    if (a.qualified > 0) parts.push(a.qualified.toLocaleString() + ' sh already qualify');
+    return '<p class="planadvice hold">' + esc(parts.join(' · ')) +
+      '<span>In profit and out of the ranking, so waiting for a year and a day halves the taxable gain. Nothing else about this is time-based.</span></p>';
+  }
+  if (a.gain > 0 && a.qualified > 0 && a.pending > 0){
+    return '<p class="planadvice sell">Sell — ' + a.qualified.toLocaleString() +
+      ' sh qualify for the discount, ' + a.pending.toLocaleString() + ' sh don\'t' +
+      (a.ready ? ' until ' + esc(fmtLongDate(a.ready)) : '') + '.</p>';
+  }
+  if (a.gain > 0) return '<p class="planadvice sell">Sell — the gain already qualifies for the discount.</p>';
+  return '<p class="planadvice sell">Sell — at a loss, so there is no discount to wait for.</p>';
+}
+function exitRowHTML(x){
+  var pl = unrealizedPL(x.c);
+  return '<div class="planexit">' +
+    '<div class="bktrow">' +
+      planWho(x.c, fmtX(x.s.m) + ' · ranked ' + x.rank + ' of ' + x.total) +
+      '<div class="qty tnum"><span class="sh">' + lotsShares(x.c).toLocaleString() + ' sh</span>' +
+        '<span class="amt">' + fmtD(x.value) + '</span>' +
+        '<span class="act ' + (pl >= 0 ? "ok" : "sell") + '">' +
+          (pl >= 0 ? "+" : "") + fmtD(pl) + '</span>' +
+      '</div>' +
+    '</div>' +
+    (x.stale ? '<p class="planadvice warn">Check the figures first — they predate this company\'s last results, so the multiple that dropped it out may be out of date.</p>' : '') +
+    exitAdviceHTML(x) +
+  '</div>';
+}
+/* How long the build phase still has to run at this month's rate — worth stating, because
+   the minimum parcel is what sets the pace, not the size of the contribution. */
+function buildPaceNote(b){
+  var left = b.gaps.length - b.buys.length;
+  var msg = 'Split into ' + fmtD(b.capital / b.buys.length) + ' parcels so each order clears the ' +
+    fmtD(MIN_PARCEL) + ' minimum for a first purchase. ';
+  if (left <= 0) return msg + 'That fills the last of the ' + b.size + ' positions.';
+  var months = Math.ceil(left / b.buys.length);
+  return msg + left + ' more ' + (left === 1 ? 'position' : 'positions') + ' to open after this — about ' +
+    months + ' ' + (months === 1 ? 'month' : 'months') + ' at this rate.';
+}
 function renderBasket(){
   document.getElementById("basketSizes").innerHTML = basketSizesHTML();
   var body = document.getElementById("basketBody");
-  var b = basketData();
+  var b = planData();
 
   if (!b.universe){
-    body.innerHTML = '<p class="hint">Nothing ranks under the current filters, so there is no basket to build. Clear a filter or pull some financials first.</p>';
-    return;
-  }
-  if (!b.capital){
-    body.innerHTML = '<p class="hint">Enter the amount you want to spread across ' +
-      b.rows.length + ' companies and this will size each position.</p>';
+    body.innerHTML = '<p class="hint">Nothing ranks under the current filters, so there is no plan to build. Clear a filter or pull some financials first.</p>';
     return;
   }
 
-  var universeNote = 'From the ' + b.universe + ' companies passing your current filters, cheapest first.' +
-    (b.short ? ' Only ' + b.rows.length + ' available, so the basket is that size.' : '');
+  var out = '';
 
-  body.innerHTML =
-    '<div class="bkt-summary tnum">' +
-      '<div><span class="k">Per position</span><span class="v">' + fmtD(b.target) + '</span></div>' +
-      '<div><span class="k">Invested</span><span class="v">' + fmtD(b.invested) + '</span></div>' +
+  /* Review cadence first — the quarterly check is what drives every sell decision below. */
+  out += '<div class="planbanner' + (b.reviewDue ? ' due' : '') + '">' +
+    '<div><b>' + (b.reviewDue ? 'Quarterly review due' : 'Next review ' + esc(fmtLongDate(b.nextRev))) + '</b>' +
+      '<span>' + (b.lastRev ? 'Last reviewed ' + esc(fmtLongDate(b.lastRev)) : 'No review recorded yet') +
+      ' · buy monthly, review quarterly</span></div>' +
+    '<button class="mini" id="btnReviewed">Reviewed today</button></div>';
+
+  out += '<div class="bkt-summary tnum">' +
+      '<div><span class="k">Holdings</span><span class="v">' + b.keeps.length + ' of ' + b.size + '</span></div>' +
+      '<div><span class="k">Buying</span><span class="v">' + fmtD(b.invested) + '</span></div>' +
       '<div><span class="k">Cash left</span><span class="v">' + fmtD(b.remainder) + '</span></div>' +
-    '</div>' +
-    '<p class="hint" style="margin:-.6rem 0 1rem">' + esc(universeNote) + '</p>' +
-    '<div class="dgroup"><span class="lab">The basket</span>' +
-      b.rows.map(basketRowHTML).join("") + '</div>' +
-    (b.exits.length
-      ? '<div class="dgroup"><span class="lab">Held but not in the basket</span>' +
-          b.exits.map(function(c){
-            return '<div class="bktrow">' + avatarHTML(c) +
-              '<div class="who name-block"><span class="tkr">' + esc(c.tkr || "—") + '</span>' +
-              '<span class="co">' + esc(c.co) + '</span></div>' +
-              '<div class="qty tnum"><span class="sh">' + lotsShares(c) + ' sh</span>' +
-              '<span class="amt">' + fmtD(holdingValue(c)) + '</span>' +
-              '<span class="act sell">exit candidate</span></div></div>';
-          }).join("") +
-        '<p class="hint" style="margin:.6rem 0 0">These have run out of the ranking — what an annual rebalance would typically sell.</p></div>'
-      : "");
+    '</div>';
+
+  var universeNote = 'Ranked from the ' + b.universe + ' companies passing your current filters, cheapest first.' +
+    (b.short ? ' Only ' + b.picks.length + ' rank, so the target is that size for now.' : '');
+  out += '<p class="hint" style="margin:-.6rem 0 1rem">' + esc(universeNote) + '</p>';
+
+  if (b.thin){
+    out += '<p class="planwarn">Owning ' + b.picks.length + ' of only ' + b.universe +
+      ' ranked companies means taking the cheapest ' + Math.round(b.picks.length/b.universe*100) +
+      '% — closer to the market than to a deep-value screen. Add more companies to the list, or hold fewer names, to keep the edge.</p>';
+  }
+
+  /* Buys */
+  var buyLab = b.mode === "build"
+    ? 'Buy this month · opening positions'
+    : 'Buy this month · topping up';
+  if (!b.capital){
+    out += '<p class="hint">Enter what you\'re putting in this month and it will be allocated — ' +
+      (b.gaps.length
+        ? 'into the ' + b.gaps.length + ' ranked ' + (b.gaps.length === 1 ? 'company' : 'companies') + ' you don\'t own yet'
+        : 'across the holdings that have drifted lightest') + '.</p>';
+  } else if (b.shortOfMin){
+    out += '<p class="planwarn">' + fmtD(b.capital) + ' won\'t open a new position — the ASX minimum for a first purchase in a stock is ' +
+      fmtD(MIN_PARCEL) + '. Either save it until you can place a ' + fmtD(MIN_PARCEL) +
+      ' order, or put it into something you already own.</p>';
+  } else if (!b.buys.length){
+    out += '<p class="hint">Nothing to buy this month — no ranked company needs the money at this size.</p>';
+  } else {
+    out += '<div class="dgroup"><span class="lab">' + buyLab + '</span>' +
+      b.buys.map(buyRowHTML).join("") +
+      '<p class="hint" style="margin:.6rem 0 0">' +
+      (b.mode === "build" ? buildPaceNote(b) :
+        'All ' + b.size + ' positions are open, so the month\'s money goes to whatever has drifted lightest — that keeps the weights even without ever having to sell to rebalance.') +
+      '</p></div>';
+  }
+
+  /* Sells */
+  if (b.exits.length){
+    out += '<div class="dgroup"><span class="lab">Sell · no longer cheap</span>' +
+      b.exits.map(exitRowHTML).join("") +
+      '<p class="hint" style="margin:.6rem 0 0">Dropping out of the top ' + b.size +
+      ' is the only reason this strategy sells. Sell the whole position, never part of one.</p></div>';
+  } else if (b.held){
+    out += '<div class="dgroup"><span class="lab">Sell · no longer cheap</span>' +
+      '<p class="hint">Nothing to sell. Everything you hold is still inside the top ' + b.size +
+      ', so it stays — however long you\'ve held it and however far it has run.</p></div>';
+  }
+
+  /* Keeps — a list of 20 tickers reads better than 20 rows in a sheet this dense. */
+  if (b.keeps.length){
+    out += '<div class="dgroup"><span class="lab">Keep · still cheap (' + b.keeps.length + ')</span>' +
+      '<p class="hint">' + b.keeps.map(function(s){ return esc(s.c.tkr || s.c.co); }).join(" · ") + '</p></div>';
+  }
+
+  if (b.unranked.length){
+    out += '<div class="dgroup"><span class="lab">Outside the strategy (' + b.unranked.length + ')</span>' +
+      '<p class="hint">' + b.unranked.map(function(c){ return esc(c.tkr || c.co); }).join(" · ") +
+      ' — held but not ranked, either missing figures or in a sector the multiple can\'t read. The plan can\'t judge these, so it leaves them alone.</p></div>';
+  }
+
+  body.innerHTML = out;
+  var rev = document.getElementById("btnReviewed");
+  if (rev) rev.addEventListener("click", function(){
+    cfg.basket.lastRebalance = isoOf(today0());
+    saveCfg(); renderBasket();
+    toast("Quarterly review recorded");
+  });
 }
 function openBasket(){
   document.getElementById("basketCapital").value = cfg.basket.capital || "";
@@ -2476,11 +2763,29 @@ function portfolioRowHTML(c){
   '</div>';
 }
 
+function closedRowHTML(c){
+  var p = positionOf(c);
+  var plCls = p.realised >= 0 ? "cheap" : "rich";
+  return '<div class="row-main">' +
+    avatarHTML(c) +
+    '<div class="name-block">' +
+      '<span class="tkr">' + esc(c.tkr) + '</span><span class="co">' + esc(c.co) + '</span>' +
+      '<div class="meta tnum">' + p.sold.toLocaleString() + ' sh sold · ' + fmtD(p.proceeds) + '</div>' +
+    '</div>' +
+    '<div class="pricecol">' +
+      '<div class="pricehead"><span class="mult tnum ' + plCls + '">' +
+        (p.realised >= 0 ? "+" : "") + fmtD(p.realised) + '</span></div>' +
+      '<div class="mult-sub" style="opacity:.72">realised</div>' +
+    '</div>' +
+  '</div>';
+}
+
 function renderPortfolio(){
   var sum = document.getElementById("portfolioSummary");
   var host = document.getElementById("portfolioLedger");
   var held = data.filter(isHeld);
-  if (!held.length){
+  var closed = data.filter(isClosed);
+  if (!held.length && !closed.length){
     sum.innerHTML = "";
     host.innerHTML = '<div class="empty"><p>Nothing held yet — open a company from the List and add a buy lot under its Portfolio section to start tracking it here.</p></div>';
     return;
@@ -2491,21 +2796,39 @@ function renderPortfolio(){
     totalCost += lotsCost(c);
     if (c.prevClose){ totalDayChange += dayChangeValue(c); haveDayChange = true; }
   });
+  /* Realised profit spans everything ever sold, including positions closed out entirely,
+     so it comes off the whole list rather than just what's currently held. */
+  var totalRealised = data.reduce(function(t, c){ return t + realisedPL(c); }, 0);
   var totalPL = totalValue - totalCost;
   var totalPLPct = totalCost > 0 ? totalPL/totalCost*100 : 0;
   var prevTotal = totalValue - totalDayChange;
   var totalDayPct = prevTotal > 0 ? totalDayChange/prevTotal*100 : 0;
   var plCls = totalPL >= 0 ? "cheap" : "rich", dchCls = totalDayChange >= 0 ? "cheap" : "rich";
-  sum.innerHTML =
-    '<div class="portfolio-total tnum">' + fmtD(totalValue) + '</div>' +
-    '<div class="portfolio-sub ' + plCls + '">' + (totalPL >= 0 ? "+" : "") + fmtD(totalPL) +
-      ' (' + fmtPct(totalPLPct) + ') all time</div>' +
-    (haveDayChange ? '<div class="portfolio-sub ' + dchCls + '">' + (totalDayChange >= 0 ? "+" : "") +
-      fmtD(totalDayChange) + ' (' + fmtPct(totalDayPct) + ') today</div>' : "");
+  var reCls = totalRealised >= 0 ? "cheap" : "rich";
+  /* With everything sold, a $0 holding value and a 0% unrealised line say nothing — the
+     realised result is the whole story, so it becomes the headline instead. */
+  sum.innerHTML = held.length
+    ? '<div class="portfolio-total tnum">' + fmtD(totalValue) + '</div>' +
+      '<div class="portfolio-sub ' + plCls + '">' + (totalPL >= 0 ? "+" : "") + fmtD(totalPL) +
+        ' (' + fmtPct(totalPLPct) + ') unrealised</div>' +
+      (totalRealised !== 0 ? '<div class="portfolio-sub ' + reCls + '">' + (totalRealised >= 0 ? "+" : "") +
+        fmtD(totalRealised) + ' realised</div>' : "") +
+      (haveDayChange ? '<div class="portfolio-sub ' + dchCls + '">' + (totalDayChange >= 0 ? "+" : "") +
+        fmtD(totalDayChange) + ' (' + fmtPct(totalDayPct) + ') today</div>' : "")
+    : '<div class="portfolio-total tnum ' + reCls + '">' + (totalRealised >= 0 ? "+" : "") +
+        fmtD(totalRealised) + '</div>' +
+      '<div class="portfolio-sub">realised · nothing held right now</div>';
   var sorted = held.slice().sort(function(a,b){ return unrealizedPLPct(b) - unrealizedPLPct(a); });
   host.innerHTML = sorted.map(function(c){
     return '<div class="rowwrap" data-id="' + c.id + '">' + portfolioRowHTML(c) + '</div>';
-  }).join("");
+  }).join("") +
+  (closed.length
+    ? '<div class="pf-sec">Closed</div>' +
+      closed.slice().sort(function(a,b){ return realisedPL(b) - realisedPL(a); })
+        .map(function(c){
+          return '<div class="rowwrap closed" data-id="' + c.id + '">' + closedRowHTML(c) + '</div>';
+        }).join("")
+    : "");
 }
 
 document.getElementById("portfolioLedger").addEventListener("click", function(e){
@@ -2546,34 +2869,61 @@ function researchHTML(c){
 
 function portfolioFieldsetHTML(c){
   var lots = c.lots || [];
-  var sh = lotsShares(c);
-  var rows = lots.map(function(l){
-    return '<div class="lotrow" data-lot="' + l.id + '">' +
+  var p = positionOf(c);
+  var sh = p.shares;
+  var rows = lotsByDate(c).map(function(l){
+    var sell = lotType(l) === "sell";
+    return '<div class="lotrow' + (sell ? ' sell' : '') + '" data-lot="' + l.id + '">' +
       '<span class="lotcell">' + esc(l.date || "") + '</span>' +
-      '<span class="lotcell tnum">' + num(l.shares).toLocaleString() + '</span>' +
+      '<span class="lotcell tnum">' + (sell ? "−" : "") + num(l.shares).toLocaleString() + '</span>' +
       '<span class="lotcell tnum">$' + num(l.price).toFixed(2) + '</span>' +
       '<button class="lotdel" data-act="dellot" data-id="' + c.id + '" data-lot="' + l.id +
-        '" aria-label="Remove lot">×</button></div>';
+        '" aria-label="Remove entry">×</button></div>';
   }).join("");
-  var today = new Date().toISOString().slice(0,10);
+  var today = isoOf(today0());
+  var adv = cgtAdvice(c, today0());
   return '<div class="fieldset"><div class="fs-title"><span>Portfolio</span></div>' +
     (lots.length
       ? '<div class="lotlist"><div class="lotrow lothead"><span class="lotcell">Date</span>' +
         '<span class="lotcell">Shares</span><span class="lotcell">Price</span><span></span></div>' + rows + '</div>'
       : '<p class="hint">No holdings yet — add a buy lot below to start tracking this position.</p>') +
+    (p.oversold > 0 ? '<p class="planwarn" style="margin:.6rem 0 0">The ledger sells ' +
+      p.oversold.toLocaleString() + ' more shares than it buys, so the cost base is incomplete. Fix a row above to make the numbers right.</p>' : '') +
     '<div class="grid" style="margin-top:.6rem">' +
       '<label><span class="lab">Date</span><input type="date" id="lotdate_' + c.id + '" value="' + today + '"></label>' +
       '<label><span class="lab">Shares</span><input inputmode="decimal" id="lotshares_' + c.id + '" placeholder="100"></label>' +
-      '<label><span class="lab">Price paid $</span><input inputmode="decimal" id="lotprice_' + c.id + '" placeholder="0.00"></label>' +
+      '<label><span class="lab">Price $</span><input inputmode="decimal" id="lotprice_' + c.id + '" placeholder="0.00"></label>' +
     '</div>' +
-    '<div class="ed-actions"><button class="mini" data-act="addlot" data-id="' + c.id + '">Add lot</button></div>' +
+    '<div class="ed-actions"><button class="mini" data-act="addlot" data-id="' + c.id + '">Add buy</button>' +
+      (sh > 0 ? '<button class="mini" data-act="selllot" data-id="' + c.id + '">Sell all ' +
+        sh.toLocaleString() + ' sh</button>' : '') +
+    '</div>' +
+    /* Selling is always the whole position, so there is no share count to retype — the
+       shares box above is for buys only. */
+    (sh > 0 ? '<p class="hint" style="margin:.5rem 0 0">Selling takes the whole position at the price above (today\'s price if you leave it blank).' +
+      (adv.action === "hold"
+        ? ' This one is in profit with nothing qualifying for the CGT discount until ' +
+          esc(fmtLongDate(adv.ready)) + '.'
+        : '') + '</p>' : '') +
     (sh > 0 ? '<div class="pf-calc tnum">' +
       '<div><span>Shares held</span><span>' + sh.toLocaleString() + '</span></div>' +
       '<div><span>Average cost</span><span>' + fmtD(avgCost(c)) + '</span></div>' +
       '<div><span>Current value</span><span>' + fmtD(holdingValue(c)) + '</span></div>' +
+      (p.realised !== 0 ? '<div><span>Realised P&amp;L</span><span style="color:' +
+        (p.realised >= 0 ? "var(--green)" : "var(--oxide)") + '">' +
+        (p.realised >= 0 ? "+" : "") + fmtD(p.realised) + '</span></div>' : '') +
       '<div class="tot"><span>Unrealised P&amp;L</span><span style="color:' +
         (unrealizedPL(c) >= 0 ? "var(--green)" : "var(--oxide)") + '">' +
         (unrealizedPL(c) >= 0 ? "+" : "") + fmtD(unrealizedPL(c)) + ' (' + fmtPct(unrealizedPLPct(c)) + ')</span></div>' +
+    '</div>' : "") +
+    /* A closed position keeps its result on screen — selling out is the end of the trade,
+       not a reason to lose the record of how it went. */
+    (sh <= 0 && p.sold > 0 ? '<div class="pf-calc tnum">' +
+      '<div><span>Shares sold</span><span>' + p.sold.toLocaleString() + '</span></div>' +
+      '<div><span>Proceeds</span><span>' + fmtD(p.proceeds) + '</span></div>' +
+      '<div class="tot"><span>Realised P&amp;L</span><span style="color:' +
+        (p.realised >= 0 ? "var(--green)" : "var(--oxide)") + '">' +
+        (p.realised >= 0 ? "+" : "") + fmtD(p.realised) + '</span></div>' +
     '</div>' : "") +
   '</div>';
 }
@@ -2871,9 +3221,31 @@ document.getElementById("ledger").addEventListener("click", function(e){
         var shN = num(shEl && shEl.value), prN = num(prEl && prEl.value);
         if (shN <= 0 || prN <= 0){ toast("Enter shares and a price first"); return; }
         if (!c.lots) c.lots = [];
-        c.lots.push({ id: uid(), date: (dEl && dEl.value) || "", shares: shN, price: prN });
+        c.lots.push({ id: uid(), type:"buy", date: (dEl && dEl.value) || "", shares: shN, price: prN });
         save(); paint();
         toast("Lot added");
+        return;
+      case "selllot":
+        if (!c) return;
+        var pos = positionOf(c);
+        if (pos.shares <= 0){ toast("Nothing held to sell"); return; }
+        var sdEl = document.getElementById("lotdate_" + c.id);
+        var spEl = document.getElementById("lotprice_" + c.id);
+        var spN = num(spEl && spEl.value) || num(c.price);
+        if (spN <= 0){ toast("Enter the price you sold at"); return; }
+        /* The CGT recommendation is worth one interruption here — this is the only moment
+           where acting a few weeks early costs real money. It never blocks the sale. */
+        var sAdv = cgtAdvice(c, today0());
+        if (sAdv.action === "hold" &&
+            !confirm("This position is in profit. Holding until " +
+              fmtLongDate(sAdv.ready) + " halves the taxable gain.\n\nSell all " +
+              pos.shares.toLocaleString() + " shares anyway?")) return;
+        c.lots.push({ id: uid(), type:"sell", date: (sdEl && sdEl.value) || isoOf(today0()),
+          shares: pos.shares, price: spN });
+        save(); paint();
+        var done = realisedPL(c);
+        toast("Sold " + pos.shares.toLocaleString() + " sh · realised " +
+          (done >= 0 ? "+" : "") + fmtD(done));
         return;
       case "dellot":
         if (!c) return;
@@ -3189,7 +3561,8 @@ Promise.all([store.get(KEY), store.get(CFGKEY)]).then(function(r){
     var sb = (r[1].basket && typeof r[1].basket === "object") ? r[1].basket : {};
     cfg.basket = {
       size: BASKET_SIZES.indexOf(Number(sb.size)) >= 0 ? Number(sb.size) : 20,
-      capital: typeof sb.capital === "string" || typeof sb.capital === "number" ? String(sb.capital) : ""
+      capital: typeof sb.capital === "string" || typeof sb.capital === "number" ? String(sb.capital) : "",
+      lastRebalance: /^\d{4}-\d{2}-\d{2}$/.test(sb.lastRebalance) ? sb.lastRebalance : ""
     };
   }
   document.getElementById("proxyUrl").value = cfg.proxy;
