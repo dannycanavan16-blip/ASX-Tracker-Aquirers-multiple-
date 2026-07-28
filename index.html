@@ -804,7 +804,7 @@ var CYCLICAL = {"Materials":1,"Energy":1};
 var ZONE_MAX = 8;
 
 var data = [], cfg = { proxy:"", auto:false, tab:"map", hidden:[], showEx:false, lastSync:null,
-  sortBy:"multiple", filters:{ mult:"any", debt:"any", size:"any" }, presets:[], lastSeen:"" };
+  sortBy:"multiple", filters:{ mult:"any", debt:"any", size:"any", data:"any" }, presets:[], lastSeen:"" };
 var openId = null, pinnedId = null, pasteOpen = null, busy = false;
 var lastDeleted = null, undoTimer = null;
 
@@ -873,6 +873,32 @@ function fmtD(v){
 }
 function fmtPct(v){ return (v < 0 ? "-" : "+") + Math.abs(v).toFixed(1) + "%"; }
 
+/* ASX half-year results are due end of February and full-year end of August, so 1 Mar and
+   1 Sep bracket the two seasons. Figures pulled before the most recent boundary predate a
+   set of results — which matters far more than raw age, and makes the nudge self-regulating:
+   the count naturally spikes each February and August with no separate "it's season" code. */
+function lastReportingSeasonEnd(now){
+  var y = now.getFullYear();
+  var mar = new Date(y, 2, 1), sep = new Date(y, 8, 1);
+  if (now >= sep) return sep;
+  if (now >= mar) return mar;
+  return new Date(y - 1, 8, 1);
+}
+function staleFinancials(c){
+  /* Never pulled at all is "Needs data", a different problem that assess() already flags —
+     unknown age isn't the same as known-stale. */
+  if (!c.finUpdated) return false;
+  return c.finUpdated < lastReportingSeasonEnd(new Date()).getTime();
+}
+/* The row flag, the Filters band and the Fetch-all count all go through this one predicate,
+   so the badge can never claim a different number than the list actually shows. It mirrors
+   assess()'s early returns: companies that never rank can't carry a ranking warning. */
+function needsFigureCheck(c){
+  if (BLOCKED[c.sector]) return false;
+  if (!hasFigures(c) || opEarn(c) <= 0) return false;
+  return staleFinancials(c);
+}
+
 function assess(c){
   var out = { excluded:false, reason:"", flags:[] };
   if (BLOCKED[c.sector]){ out.excluded = true; out.reason = BLOCKED[c.sector];
@@ -888,6 +914,9 @@ function assess(c){
   if (nd / oe > 4) out.flags.push({t:"Net debt " + (nd/oe).toFixed(1) + "×", k:"warn"});
   if (mcap(c) > 0 && mcap(c) < 50) out.flags.push({t:"Micro cap", k:"warn"});
   if (nd < 0) out.flags.push({t:"Net cash", k:"info"});
+  /* "Check" rather than "stale": finUpdated records when you pulled, not when the company
+     reported, and not every ASX company has a June year-end. Worth verifying, not a verdict. */
+  if (needsFigureCheck(c)) out.flags.push({t:"Check figures", k:"warn"});
   if (c.updated && Date.now() - c.updated < 26*3600*1000) out.flags.push({t:"Live", k:"live"});
   return out;
 }
@@ -1036,8 +1065,21 @@ var FILTER_BANDS = {
     { k:"large", label:"Over $10b",  test:function(s){ return mcap(s.c) >= 10000; } },
     { k:"mid",   label:"$1b–$10b", test:function(s){ var m = mcap(s.c); return m >= 1000 && m < 10000; } },
     { k:"small", label:"Under $1b", test:function(s){ var m = mcap(s.c); return m > 0 && m < 1000; } }
+  ],
+  data: [
+    { k:"any",   label:"Any" },
+    { k:"stale", label:"Needs checking", test:function(s){ return needsFigureCheck(s.c); } }
   ]
 };
+/* Single source for the group list and its display order — previously spelled out in four
+   separate places, so adding a group meant remembering all four. */
+var FILTER_GROUPS = [
+  ["mult","Acquirer's multiple"],
+  ["debt","Net debt"],
+  ["size","Company size"],
+  ["data","Figures"]
+];
+function filterGroupKeys(){ return FILTER_GROUPS.map(function(g){ return g[0]; }); }
 function bandDef(group, key){
   var list = FILTER_BANDS[group] || [];
   for (var i = 0; i < list.length; i++) if (list[i].k === key) return list[i];
@@ -1046,14 +1088,14 @@ function bandDef(group, key){
 function activeFilterCount(f){
   f = f || cfg.filters;
   var n = 0;
-  ["mult","debt","size"].forEach(function(g){ if (f[g] && f[g] !== "any") n++; });
+  filterGroupKeys().forEach(function(g){ if (f[g] && f[g] !== "any") n++; });
   return n;
 }
 /* Takes a scored row (not a company) because the multiple band needs s.m, which
    visible() has no access to. */
 function passesFilters(s){
   var f = cfg.filters || {};
-  var groups = ["mult","debt","size"];
+  var groups = filterGroupKeys();
   for (var i = 0; i < groups.length; i++){
     var def = bandDef(groups[i], f[groups[i]]);
     if (def && def.test && !def.test(s)) return false;
@@ -1295,7 +1337,7 @@ async function fetchAllFinancials(){
 
   setProgress(i, queue.length, stopFetch ? "stopped" : "done");
   fetching = false;
-  btn.disabled = false; btn.textContent = "Fetch all financials";
+  btn.disabled = false; renderFetchAllCount();
   paint();
   setTimeout(function(){ showProgress(false); }, 1400);
 
@@ -1305,6 +1347,14 @@ async function fetchAllFinancials(){
   toast(msg);
   if (failed.length) setStatus("No data for: " + failed.slice(0,12).join(", ") +
     (failed.length > 12 ? " and " + (failed.length - 12) + " more" : ""), "bad");
+}
+
+/* Puts the fix one tap from the warning — a flag nobody can act on is just noise. */
+function renderFetchAllCount(){
+  var btn = document.getElementById("btnFetchAll");
+  if (!btn || btn.disabled) return; /* mid-fetch: leave the "Fetching…" label alone */
+  var n = data.filter(needsFigureCheck).length;
+  btn.textContent = "Fetch all financials" + (n ? " · " + n : "");
 }
 
 /* ===================== cloud backup/sync ===================== */
@@ -1864,8 +1914,7 @@ function renderAdvCount(){
   document.getElementById("advCount").innerHTML = n ? '<span class="badge">' + n + '</span>' : "";
 }
 function advGroupsHTML(d){
-  var groups = [["mult","Acquirer's multiple"],["debt","Net debt"],["size","Company size"]];
-  return groups.map(function(g){
+  return FILTER_GROUPS.map(function(g){
     var key = g[0];
     return '<div class="fgroup"><span class="lab">' + g[1] + '</span><div class="fchips">' +
       FILTER_BANDS[key].map(function(b){
@@ -1889,8 +1938,18 @@ function renderAdvSheet(){
   document.getElementById("advGroups").innerHTML = advGroupsHTML(advDraft || cfg.filters);
   document.getElementById("presetList").innerHTML = presetListHTML();
 }
+/* Pulls every group from FILTER_GROUPS and defaults anything missing to "any", so presets
+   saved before a group existed still load cleanly instead of leaving it undefined. */
+function pickFilters(src){
+  var out = {};
+  src = src || {};
+  filterGroupKeys().forEach(function(g){
+    out[g] = FILTER_BANDS[g].some(function(b){ return b.k === src[g]; }) ? src[g] : "any";
+  });
+  return out;
+}
 function openAdv(){
-  advDraft = { mult: cfg.filters.mult, debt: cfg.filters.debt, size: cfg.filters.size };
+  advDraft = pickFilters(cfg.filters);
   renderAdvSheet();
   document.getElementById("advSheet").classList.add("open");
   document.getElementById("advBackdrop").classList.add("open");
@@ -1901,7 +1960,7 @@ function closeAdv(){
   document.getElementById("advBackdrop").classList.remove("open");
 }
 function commitFilters(f){
-  cfg.filters = { mult: f.mult, debt: f.debt, size: f.size };
+  cfg.filters = pickFilters(f);
   saveCfg(); renderAdvCount(); paint();
 }
 document.getElementById("advBtn").addEventListener("click", openAdv);
@@ -1912,7 +1971,7 @@ document.getElementById("btnAdvApply").addEventListener("click", function(){
   closeAdv();
 });
 document.getElementById("btnAdvClear").addEventListener("click", function(){
-  commitFilters({ mult:"any", debt:"any", size:"any" });
+  commitFilters({});
   closeAdv();
   toast("Filters cleared");
 });
@@ -1927,9 +1986,8 @@ document.getElementById("btnSavePreset").addEventListener("click", function(){
   var d = advDraft || cfg.filters;
   var name = prompt("Name this preset", "My screen");
   if (!name) return;
-  cfg.presets.push({ id: uid(), name: String(name).slice(0, 40),
-    hidden: cfg.hidden.slice(), showEx: cfg.showEx,
-    mult: d.mult, debt: d.debt, size: d.size });
+  cfg.presets.push(Object.assign({ id: uid(), name: String(name).slice(0, 40),
+    hidden: cfg.hidden.slice(), showEx: cfg.showEx }, pickFilters(d)));
   saveCfg();
   renderAdvSheet();
   toast("Preset saved");
@@ -2494,6 +2552,7 @@ function paint(){
   else if (cfg.tab === "favs") renderFavsView(scored);
   else if (cfg.tab === "portfolio") renderPortfolio();
   else { renderList(scored); renderDigestStrip(); }
+  renderFetchAllCount();
 }
 
 function save(){ store.set(KEY, data); }
@@ -2942,7 +3001,7 @@ Promise.all([store.get(KEY), store.get(CFGKEY)]).then(function(r){
     /* Validate each band against its allowed values rather than trusting what was stored —
        a renamed band in a future version would otherwise silently filter everything out. */
     var sf = (r[1].filters && typeof r[1].filters === "object") ? r[1].filters : {};
-    ["mult","debt","size"].forEach(function(g){
+    filterGroupKeys().forEach(function(g){
       cfg.filters[g] = FILTER_BANDS[g].some(function(b){ return b.k === sf[g]; }) ? sf[g] : "any";
     });
     cfg.presets = Array.isArray(r[1].presets) ? r[1].presets : [];
