@@ -357,9 +357,21 @@ button.mini{font-size:.72rem;padding:.4rem .7rem}
 .rowwrap.excluded .tkr,.rowwrap.excluded .co{opacity:.55}
 
 /* ---------- editor ---------- */
+.summary{display:none;padding:.2rem 1.1rem 1.1rem;background:var(--paper-2)}
+.rowwrap.open .summary{display:block}
+.summary .calc,.summary .pf-calc{margin-top:.6rem}
+.buybox{display:grid;grid-template-columns:1fr 1fr auto;gap:.5rem;align-items:end;margin-top:.7rem}
+.buybox .lab{display:block;font-family:var(--cond);font-weight:600;font-size:.63rem;
+  letter-spacing:.05em;text-transform:uppercase;color:var(--ink-soft);margin-bottom:.2rem}
+.buybox input{width:100%}
+.buybox button{white-space:nowrap}
+.bktrow .qty .planbuy{margin-top:.25rem;padding:.25rem .7rem;font-size:.74rem;min-height:0}
 .editor{display:none;padding:.2rem 1.1rem 1.2rem;background:var(--paper-2);
   border-top:1px dashed var(--rule)}
 .rowwrap.open .editor{display:block}
+/* Inside the detail sheet the editor is the whole point, and the sheet already supplies
+   the padding and background. */
+#coBody .editor{display:block;padding:0;background:transparent;border:0}
 .fieldset{margin-top:1rem}
 .fs-title{font-family:var(--cond);font-weight:700;font-size:.7rem;letter-spacing:.1em;
   text-transform:uppercase;color:var(--ink);padding-bottom:.35rem;
@@ -441,6 +453,7 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
   background:var(--paper);border-radius:22px 22px 0 0;box-shadow:0 -8px 30px rgba(0,0,0,.2);
   max-height:calc(88vh - var(--navh));overflow-y:auto;padding:.6rem 1.1rem 1.4rem}
 .sheet.open{display:block}
+.sheet.tall{max-height:calc(96vh - var(--navh))}
 .sheet-handle{width:36px;height:4px;border-radius:99px;background:var(--rule);margin:.5rem auto 1rem}
 .sheet h2{font-family:var(--serif);font-size:1.2rem;font-weight:700;margin:0 0 1rem}
 .sheet-head{display:flex;align-items:center;justify-content:space-between;gap:.6rem;
@@ -776,12 +789,20 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
   <div id="sectorStatsList"></div>
 </div>
 
+<div class="sheet-backdrop" id="coBackdrop"></div>
+<div class="sheet tall" id="coSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-head"><h2 id="coTitle">Company</h2>
+    <button class="sheet-x" id="btnCoClose" aria-label="Close">✕</button></div>
+  <div id="coBody"></div>
+</div>
+
 <div class="sheet-backdrop" id="basketBackdrop"></div>
 <div class="sheet" id="basketSheet">
   <div class="sheet-handle"></div>
   <div class="sheet-head"><h2>Monthly plan</h2>
     <button class="sheet-x" id="btnBasketClose" aria-label="Close">✕</button></div>
-  <p class="hint" style="margin:0 0 .9rem">What to buy this month and what has stopped being cheap. Arithmetic only: nothing is bought, sold or saved to your portfolio.</p>
+  <p class="hint" style="margin:0 0 .9rem">What to buy this month and what has stopped being cheap. <b>Buy</b> records the purchase in your portfolio and takes it out of the month's money — it doesn't place an order with your broker.</p>
 
   <details class="planrules">
     <summary>The strategy</summary>
@@ -899,6 +920,7 @@ var data = [], cfg = { proxy:"", auto:false, tab:"map", hidden:[], showEx:false,
   sortBy:"multiple", filters:{ mult:"any", debt:"any", size:"any", data:"any" }, presets:[], lastSeen:"",
   basket:{ size:20, capital:"", lastRebalance:"" } };
 var openId = null, pinnedId = null, pasteOpen = null, busy = false;
+var detailId = null, buyOpen = null;
 var lastDeleted = null, undoTimer = null;
 
 function uid(){ return "c" + Math.random().toString(36).slice(2,9); }
@@ -1247,11 +1269,15 @@ var FILTER_BANDS = {
     { k:"lt4",   label:"Under 4× earnings", test:function(s){
         var oe = opEarn(s.c); return oe > 0 && netDebt(s.c) / oe < 4; } }
   ],
+  /* Floors rather than slices: on this screen almost everything ranked is under $1b, so a
+     "small caps" bucket does no work. What the filter is actually for is ruling out the
+     tiddlers you can't put a real parcel into. */
   size: [
     { k:"any",   label:"Any" },
-    { k:"large", label:"Over $10b",  test:function(s){ return mcap(s.c) >= 10000; } },
-    { k:"mid",   label:"$1b–$10b", test:function(s){ var m = mcap(s.c); return m >= 1000 && m < 10000; } },
-    { k:"small", label:"Under $1b", test:function(s){ var m = mcap(s.c); return m > 0 && m < 1000; } }
+    { k:"m50",   label:"Over $50m",  test:function(s){ return mcap(s.c) >= 50; } },
+    { k:"m300",  label:"Over $300m", test:function(s){ return mcap(s.c) >= 300; } },
+    { k:"b1",    label:"Over $1b",   test:function(s){ return mcap(s.c) >= 1000; } },
+    { k:"b10",   label:"Over $10b",  test:function(s){ return mcap(s.c) >= 10000; } }
   ],
   data: [
     { k:"any",   label:"Any" },
@@ -1263,7 +1289,7 @@ var FILTER_BANDS = {
 var FILTER_GROUPS = [
   ["mult","Acquirer's multiple"],
   ["debt","Net debt"],
-  ["size","Company size"],
+  ["size","Minimum size"],
   ["data","Figures"]
 ];
 function filterGroupKeys(){ return FILTER_GROUPS.map(function(g){ return g[0]; }); }
@@ -2120,7 +2146,9 @@ function buyRowHTML(r){
     planWho(r.c, fmtX(r.m) + ' · ' + fmtD(r.price) + (flags ? ' · ' + flags : '')) +
     '<div class="qty tnum"><span class="sh">' + r.shares.toLocaleString() + ' sh</span>' +
       '<span class="amt">' + fmtD(r.cost) + '</span>' +
-      '<span class="act ' + cls + '">' + esc(act) + '</span>' +
+      (r.shares > 0
+        ? '<button class="mini planbuy" data-planbuy="' + r.c.id + '">Buy</button>'
+        : '<span class="act ' + cls + '">' + esc(act) + '</span>') +
     '</div></div>';
 }
 /* One line per exit saying what to do with it, because "no longer cheap" and "sell today"
@@ -2160,8 +2188,12 @@ function exitRowHTML(x){
    the minimum parcel is what sets the pace, not the size of the contribution. */
 function buildPaceNote(b){
   var left = b.gaps.length - b.buys.length;
-  var msg = 'Split into ' + fmtD(b.capital / b.buys.length) + ' parcels so each order clears the ' +
-    fmtD(MIN_PARCEL) + ' minimum for a first purchase. ';
+  var msg = 'Split into ' + fmtD(b.invested / b.buys.length) + ' parcels so each order clears the ' +
+    fmtD(MIN_PARCEL) + ' minimum for a first purchase. ' +
+    /* Rounding whole shares up to reach the minimum can cost a few dollars more than the
+       contribution. Better to say so than to show a negative cash balance. */
+    (b.remainder < 0 ? 'Rounding up to whole shares puts that ' + fmtD(-b.remainder) +
+      ' over what you\'re adding this month. ' : '');
   if (left <= 0) return msg + 'That fills the last of the ' + b.size + ' positions.';
   var months = Math.ceil(left / b.buys.length);
   return msg + left + ' more ' + (left === 1 ? 'position' : 'positions') + ' to open after this — about ' +
@@ -2189,7 +2221,12 @@ function renderBasket(){
   out += '<div class="bkt-summary tnum">' +
       '<div><span class="k">Holdings</span><span class="v">' + b.keeps.length + ' of ' + b.size + '</span></div>' +
       '<div><span class="k">Buying</span><span class="v">' + fmtD(b.invested) + '</span></div>' +
-      '<div><span class="k">Cash left</span><span class="v">' + fmtD(b.remainder) + '</span></div>' +
+      /* A negative "cash left" reads as a bug; it's really the cost of clearing the minimum
+         parcel with whole shares, so it gets named for what it is. */
+      (b.remainder < 0
+        ? '<div><span class="k">Over budget</span><span class="v" style="color:var(--ochre)">' +
+            fmtD(-b.remainder) + '</span></div>'
+        : '<div><span class="k">Cash left</span><span class="v">' + fmtD(b.remainder) + '</span></div>') +
     '</div>';
 
   var universeNote = 'Ranked from the ' + b.universe + ' companies passing your current filters, cheapest first.' +
@@ -2281,6 +2318,26 @@ document.getElementById("basketSizes").addEventListener("click", function(e){
 document.getElementById("basketCapital").addEventListener("input", function(){
   cfg.basket.capital = this.value;
   saveCfg(); renderBasket();
+});
+/* Recording a buy takes it out of the month's money, so the next allocation works from
+   what's actually left rather than proposing the same contribution twice. */
+document.getElementById("basketBody").addEventListener("click", function(e){
+  var btn = e.target.closest("[data-planbuy]"); if (!btn) return;
+  var b = planData();
+  var row = b.buys.filter(function(r){ return r.c.id === btn.dataset.planbuy; })[0];
+  if (!row || row.shares <= 0 || row.price <= 0){ toast("Nothing to buy on that row"); return; }
+  var c = row.c;
+  if (!c.lots) c.lots = [];
+  c.lots.push({ id: uid(), type:"buy", date: isoOf(today0()), shares: row.shares, price: row.price });
+  var was = num(cfg.basket.capital), left = Math.max(0, was - row.cost);
+  cfg.basket.capital = left ? String(Math.round(left * 100) / 100) : "";
+  save(); saveCfg(); paint();
+  document.getElementById("basketCapital").value = cfg.basket.capital;
+  renderBasket();
+  toast("Bought " + row.shares.toLocaleString() + " " + (c.tkr || "sh") + " · " +
+    (left ? fmtD(left) + " left this month"
+          : row.cost > was ? fmtD(row.cost - was) + " over the month's money"
+          : "that's the month's money spent"));
 });
 
 /* ---------- "what changed" digest ---------- */
@@ -2892,7 +2949,10 @@ function portfolioFieldsetHTML(c){
     '<div class="grid" style="margin-top:.6rem">' +
       '<label><span class="lab">Date</span><input type="date" id="lotdate_' + c.id + '" value="' + today + '"></label>' +
       '<label><span class="lab">Shares</span><input inputmode="decimal" id="lotshares_' + c.id + '" placeholder="100"></label>' +
-      '<label><span class="lab">Price $</span><input inputmode="decimal" id="lotprice_' + c.id + '" placeholder="0.00"></label>' +
+      /* Pre-filled with the last price the app saw, labelled with how old that is — a stale
+         price accepted without noticing is a wrong cost base for the life of the position. */
+      '<label><span class="lab">Price $ · ' + esc(priceAge(c)) + '</span><input inputmode="decimal" id="lotprice_' + c.id +
+        '" value="' + esc(num(c.price) > 0 ? String(c.price).trim() : "") + '" placeholder="0.00"></label>' +
     '</div>' +
     '<div class="ed-actions"><button class="mini" data-act="addlot" data-id="' + c.id + '">Add buy</button>' +
       (sh > 0 ? '<button class="mini" data-act="selllot" data-id="' + c.id + '">Sell all ' +
@@ -3002,6 +3062,51 @@ function editorHTML(c){
   '</div></div>';
 }
 
+/* Tapping a row used to unfold the whole editor — nine fieldsets deep, which made the list
+   impossible to scan. What opens now is a read-only card: the numbers behind the multiple,
+   your position if you have one, and the two things worth doing from the list. Everything
+   editable lives one tap further in, behind More. */
+function priceAge(c){ return c.updated ? "priced " + ago(c.updated) : "no price yet"; }
+function summaryHTML(c){
+  var p = positionOf(c);
+  var held = p.shares > 0;
+  var pl = p.shares * num(c.price) - p.cost;
+  /* Echo exactly what's stored rather than re-formatting it: sub-dollar ASX stocks are
+     quoted to a tenth of a cent, and rounding to two would quietly change the cost base. */
+  var priceVal = num(c.price) > 0 ? String(c.price).trim() : "";
+  return '<div class="summary">' +
+    '<div class="calc tnum">' + calcHTML(c) + '</div>' +
+    (held ? '<div class="pf-calc tnum">' +
+      '<div><span>You hold</span><span>' + p.shares.toLocaleString() + ' sh @ ' + fmtD(avgCost(c)) + '</span></div>' +
+      '<div><span>Current value</span><span>' + fmtD(holdingValue(c)) + '</span></div>' +
+      '<div class="tot"><span>Unrealised P&amp;L</span><span style="color:' +
+        (pl >= 0 ? "var(--green)" : "var(--oxide)") + '">' + (pl >= 0 ? "+" : "") + fmtD(pl) +
+        ' (' + fmtPct(unrealizedPLPct(c)) + ')</span></div></div>' : '') +
+    (p.shares <= 0 && p.sold > 0 ? '<p class="hint" style="margin:.6rem 0 0">Closed out · realised ' +
+      (p.realised >= 0 ? "+" : "") + fmtD(p.realised) + '</p>' : '') +
+    '<div class="ed-actions">' +
+      '<button class="primary mini" data-act="more" data-id="' + c.id + '">More</button>' +
+      '<button class="mini" data-act="buytoggle" data-id="' + c.id + '">Buy</button>' +
+      (held ? '<button class="mini" data-act="selllot" data-id="' + c.id + '">Sell all ' +
+        p.shares.toLocaleString() + ' sh</button>' : '') +
+      '<button class="mini" data-act="fetch" data-id="' + c.id + '">Fetch financials</button>' +
+    '</div>' +
+    /* Buying is the everyday action, so it gets two fields here rather than a trip to the
+       detail page. The price arrives filled in with what the app last saw, and says how old
+       that is — a stale price silently accepted is a wrong cost base. */
+    (buyOpen === c.id
+      ? '<div class="buybox">' +
+          '<input type="hidden" id="lotdate_' + c.id + '" value="' + isoOf(today0()) + '">' +
+          '<label><span class="lab">Shares</span>' +
+            '<input inputmode="decimal" id="lotshares_' + c.id + '" placeholder="100"></label>' +
+          '<label><span class="lab">Price $ · ' + esc(priceAge(c)) + '</span>' +
+            '<input inputmode="decimal" id="lotprice_' + c.id + '" value="' + esc(priceVal) + '" placeholder="0.00"></label>' +
+          '<button class="primary mini" data-act="addlot" data-id="' + c.id + '">Add</button>' +
+        '</div>'
+      : '') +
+  '</div>';
+}
+
 function calcHTML(c){
   return '<div><span>Market cap</span><span>' + fmtM(mcap(c)) + '</span></div>' +
     '<div><span>Net debt</span><span>' + fmtM(netDebt(c)) + '</span></div>' +
@@ -3041,7 +3146,7 @@ function rowHTML(c, rank, a, m){
       (subTxt ? '<div class="mult-sub ' + multCls + '">' + subTxt + '</div>' : '') +
       sparklineSVG(c.history, 56, 18) +
     '</div>' +
-  '</div>' + editorHTML(c) + '</div>';
+  '</div>' + summaryHTML(c) + '</div>';
 }
 
 function renderList(scored){
@@ -3075,6 +3180,33 @@ function renderList(scored){
   led.innerHTML = html;
 }
 
+/* ---------- company detail sheet ----------
+   Everything the row used to unfold inline, one tap further in. The editor markup is the
+   same one the list used to render, so the delegated handlers work unchanged. */
+function renderDetail(){
+  var c = data.filter(function(x){ return x.id === detailId; })[0];
+  if (!c){ closeDetail(); return; }
+  document.getElementById("coTitle").textContent = (c.tkr || "New entry") + (c.co ? " · " + c.co : "");
+  document.getElementById("coBody").innerHTML = editorHTML(c);
+}
+function openDetail(id){
+  /* The card's quick-buy box and the detail page's portfolio fieldset share input ids, so
+     only one of them may exist at a time. */
+  detailId = id; pasteOpen = null; buyOpen = null;
+  paint();
+  renderDetail();
+  document.getElementById("coSheet").classList.add("open");
+  document.getElementById("coBackdrop").classList.add("open");
+  document.getElementById("coSheet").scrollTop = 0;
+}
+function closeDetail(){
+  detailId = null; pasteOpen = null;
+  document.getElementById("coSheet").classList.remove("open");
+  document.getElementById("coBackdrop").classList.remove("open");
+}
+document.getElementById("btnCoClose").addEventListener("click", closeDetail);
+document.getElementById("coBackdrop").addEventListener("click", closeDetail);
+
 function paint(){
   var scored = scoreAll();
   renderChips();
@@ -3083,6 +3215,7 @@ function paint(){
   else if (cfg.tab === "portfolio") renderPortfolio();
   else { renderList(scored); renderDigestStrip(); }
   renderFetchAllCount();
+  if (detailId) renderDetail();
 }
 
 function save(){ store.set(KEY, data); }
@@ -3180,7 +3313,9 @@ document.getElementById("search").addEventListener("input", function(){
   if (cfg.tab === "list") renderList(scoreAll());
 });
 
-document.getElementById("ledger").addEventListener("click", function(e){
+/* The same delegated handlers serve the list and the detail sheet, so every data-act and
+   data-k control behaves identically wherever it is rendered. */
+function ledgerClick(e){
   var btn = e.target.closest("button");
   if (btn){
     var c = data.filter(function(x){ return x.id === btn.dataset.id; })[0];
@@ -3189,9 +3324,17 @@ document.getElementById("ledger").addEventListener("click", function(e){
       case "fav":
         if (c){ c.fav = !c.fav; save(); paint(); }
         return;
-      case "done":   openId = null; pasteOpen = null; paint(); return;
+      case "more":   openDetail(btn.dataset.id); return;
+      case "done":   closeDetail(); openId = null; pasteOpen = null; paint(); return;
       case "delete":
-        if (c && confirm("Delete " + (c.tkr || "this entry") + "?")) deleteCompany(btn.dataset.id);
+        if (c && confirm("Delete " + (c.tkr || "this entry") + "?")){
+          closeDetail(); deleteCompany(btn.dataset.id);
+        }
+        return;
+      case "buytoggle":
+        buyOpen = (buyOpen === btn.dataset.id) ? null : btn.dataset.id;
+        paint();
+        if (buyOpen){ var sh = document.getElementById("lotshares_" + buyOpen); if (sh) sh.focus(); }
         return;
       case "paste":
         pasteOpen = (pasteOpen === btn.dataset.id) ? null : btn.dataset.id;
@@ -3221,9 +3364,11 @@ document.getElementById("ledger").addEventListener("click", function(e){
         var shN = num(shEl && shEl.value), prN = num(prEl && prEl.value);
         if (shN <= 0 || prN <= 0){ toast("Enter shares and a price first"); return; }
         if (!c.lots) c.lots = [];
-        c.lots.push({ id: uid(), type:"buy", date: (dEl && dEl.value) || "", shares: shN, price: prN });
+        c.lots.push({ id: uid(), type:"buy", date: (dEl && dEl.value) || isoOf(today0()),
+          shares: shN, price: prN });
+        buyOpen = null;
         save(); paint();
-        toast("Lot added");
+        toast("Bought " + shN.toLocaleString() + " sh at " + fmtD(prN));
         return;
       case "selllot":
         if (!c) return;
@@ -3258,36 +3403,47 @@ document.getElementById("ledger").addEventListener("click", function(e){
   if (main){
     var wrap = main.closest(".rowwrap");
     openId = (openId === wrap.dataset.id) ? null : wrap.dataset.id;
-    pasteOpen = null;
+    pasteOpen = null; buyOpen = null;
     paint();
     if (openId){
       var el = document.querySelector('.rowwrap[data-id="' + openId + '"]');
       if (el) el.scrollIntoView({ behavior:"smooth", block:"nearest" });
     }
   }
-});
+}
 
-document.getElementById("ledger").addEventListener("input", function(e){
+/* Typing repaints only the calc block, never the whole view — a repaint mid-keystroke
+   would replace the input under the cursor and lose focus. */
+function ledgerInput(e){
   var el = e.target;
   if (!el.dataset || !el.dataset.k) return;
   var c = data.filter(function(x){ return x.id === el.dataset.id; })[0];
   if (!c) return;
   c[el.dataset.k] = el.dataset.k === "tkr" ? el.value.toUpperCase() : el.value;
   save();
-  var calc = el.closest(".rowwrap").querySelector(".calc");
+  var host = el.closest(".rowwrap") || el.closest(".sheet");
+  var calc = host && host.querySelector(".calc");
   if (calc) calc.innerHTML = calcHTML(c);
-});
-document.getElementById("ledger").addEventListener("change", function(e){
+}
+function ledgerChange(e){
   if (e.target.dataset && e.target.dataset.k === "sector"){
     var c = data.filter(function(x){ return x.id === e.target.dataset.id; })[0];
     if (c){ c.sector = e.target.value; save(); paint(); }
   }
+}
+["ledger","coSheet"].forEach(function(id){
+  var host = document.getElementById(id);
+  host.addEventListener("click", ledgerClick);
+  host.addEventListener("input", ledgerInput);
+  host.addEventListener("change", ledgerChange);
 });
 
 document.getElementById("btnAdd").addEventListener("click", function(){
   var c = blank(); data.unshift(c); openId = c.id;
   save(); setTab("list");
-  var el = document.querySelector('.rowwrap[data-id="' + c.id + '"] input');
+  /* A blank entry has nothing to summarise, so it opens straight into the editable page. */
+  openDetail(c.id);
+  var el = document.querySelector('#coBody input');
   if (el) el.focus();
 });
 document.getElementById("btnRefresh").addEventListener("click", function(){ refreshPrices(false); });
