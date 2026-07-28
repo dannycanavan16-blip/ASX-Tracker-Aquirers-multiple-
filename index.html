@@ -91,7 +91,7 @@ body{
 .themeswitch[aria-checked="true"] .thumb{left:calc(100% - 1.3rem - 2px)}
 
 /* ---------- sector filter dropdown ---------- */
-.sectorfilter{position:relative;padding:.9rem 0 .3rem}
+.sectorfilter{position:relative}
 .filterbtn{font-family:var(--sans);font-weight:600;font-size:.82rem;
   padding:.5rem .7rem .5rem .9rem;border:1px solid var(--rule);background:var(--paper-2);
   color:var(--ink);border-radius:999px;cursor:pointer;display:flex;align-items:center;gap:.5rem;
@@ -120,6 +120,25 @@ body{
 .filmitem.on .fcheck svg{opacity:1}
 .filmitem.off .dot{background:var(--rule)!important}
 .filmdivider{height:1px;background:var(--rule);margin:.35rem .3rem}
+
+/* ---------- advanced filters ---------- */
+.filterrow{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;padding:.9rem 0 .3rem}
+.filterbtn .badge{background:var(--blue);color:#fff;font-size:.68rem;font-weight:700;
+  border-radius:999px;padding:.05rem .38rem;margin-left:.1rem}
+.fgroup{margin-bottom:1rem}
+.fgroup .lab{display:block;margin-bottom:.45rem}
+.fchips{display:flex;gap:.4rem;flex-wrap:wrap}
+.fchip{font-family:var(--sans);font-weight:600;font-size:.78rem;padding:.42rem .75rem;
+  border:1px solid var(--rule);background:var(--paper);color:var(--ink-soft);
+  border-radius:999px;cursor:pointer;box-shadow:none}
+.fchip:hover{background:var(--paper);color:var(--ink);border-color:var(--ink-soft)}
+.fchip.on{background:var(--blue);border-color:var(--blue);color:#fff}
+.fchip.on:hover{background:var(--blue);color:#fff;border-color:var(--blue)}
+.presetrow{display:flex;align-items:center;gap:.4rem;margin-bottom:.4rem}
+.presetrow .use{flex:1;text-align:left;font-size:.82rem;padding:.5rem .8rem}
+.presetrow .del{flex:0 0 auto;background:transparent;border:0;box-shadow:none;
+  color:var(--ink-soft);font-size:.95rem;padding:.35rem .5rem;cursor:pointer}
+.presetrow .del:hover{background:transparent;color:var(--oxide)}
 .starbtn{background:transparent;border:0;box-shadow:none;padding:.1rem .2rem;
   font-size:1.05rem;line-height:1;color:var(--ink-soft);cursor:pointer}
 .starbtn:hover{background:transparent;color:var(--ochre)}
@@ -418,12 +437,17 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
 
 <div class="wrap">
 
-  <div class="sectorfilter" id="sectorFilter">
-    <button class="filterbtn" id="sfBtn" aria-haspopup="true" aria-expanded="false">
-      <span id="sfLabel">All sectors</span>
-      <svg class="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"></path></svg>
+  <div class="filterrow">
+    <div class="sectorfilter" id="sectorFilter">
+      <button class="filterbtn" id="sfBtn" aria-haspopup="true" aria-expanded="false">
+        <span id="sfLabel">All sectors</span>
+        <svg class="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"></path></svg>
+      </button>
+      <div class="filtermenu" id="sfMenu"></div>
+    </div>
+    <button class="filterbtn" id="advBtn" aria-haspopup="true">
+      <span>Filters</span><span id="advCount"></span>
     </button>
-    <div class="filtermenu" id="sfMenu"></div>
   </div>
 
   <section id="viewMap">
@@ -635,6 +659,25 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
   <div id="sectorStatsList"></div>
 </div>
 
+<div class="sheet-backdrop" id="advBackdrop"></div>
+<div class="sheet" id="advSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-head"><h2>Filters</h2>
+    <button class="sheet-x" id="btnAdvClose" aria-label="Close">✕</button></div>
+  <div id="advGroups"></div>
+  <div class="fieldset">
+    <div class="fs-title"><span>Saved presets</span></div>
+    <div id="presetList"></div>
+    <div class="ed-actions" style="margin-top:.5rem">
+      <button class="mini" id="btnSavePreset">Save current as preset</button>
+    </div>
+  </div>
+  <div class="ed-actions" style="margin-top:1.2rem">
+    <button class="primary" id="btnAdvApply">Apply</button>
+    <button class="ghost" id="btnAdvClear">Clear filters</button>
+  </div>
+</div>
+
 <div class="toast" id="toast"><span id="toastTxt"></span></div>
 
 <script>
@@ -694,7 +737,8 @@ var BLOCKED = {"Financials":"Banks and insurers — EV is meaningless",
 var CYCLICAL = {"Materials":1,"Energy":1};
 var ZONE_MAX = 8;
 
-var data = [], cfg = { proxy:"", auto:false, tab:"map", hidden:[], showEx:false, lastSync:null, sortBy:"multiple" };
+var data = [], cfg = { proxy:"", auto:false, tab:"map", hidden:[], showEx:false, lastSync:null,
+  sortBy:"multiple", filters:{ mult:"any", debt:"any", size:"any" }, presets:[] };
 var openId = null, pinnedId = null, pasteOpen = null, busy = false;
 var lastDeleted = null, undoTimer = null;
 
@@ -847,6 +891,54 @@ function esc(s){ return String(s == null ? "" : s).replace(/[&<>"]/g, function(c
   return {"&":"&amp;","<":"&lt;",">":"&gt;","\"":"&quot;"}[ch]; }); }
 
 /* ===================== filters ===================== */
+/* Bands rather than sliders — one tap each, and the cutoffs deliberately reuse numbers
+   the app already works in (8x is ZONE_MAX, 14x is the "Rich" line in rowHTML, 4x net
+   debt is the warning threshold in assess()) so this reads as the same tool. */
+var FILTER_BANDS = {
+  mult: [
+    { k:"any",   label:"Any" },
+    { k:"lt6",   label:"Under 6×",  test:function(s){ return s.m != null && s.m < 6; } },
+    { k:"lt8",   label:"Under 8×",  test:function(s){ return s.m != null && s.m < 8; } },
+    { k:"lt10",  label:"Under 10×", test:function(s){ return s.m != null && s.m < 10; } },
+    { k:"lt14",  label:"Under 14×", test:function(s){ return s.m != null && s.m < 14; } }
+  ],
+  debt: [
+    { k:"any",   label:"Any" },
+    { k:"cash",  label:"Net cash only", test:function(s){ return netDebt(s.c) < 0; } },
+    { k:"lt2",   label:"Under 2× earnings", test:function(s){
+        var oe = opEarn(s.c); return oe > 0 && netDebt(s.c) / oe < 2; } },
+    { k:"lt4",   label:"Under 4× earnings", test:function(s){
+        var oe = opEarn(s.c); return oe > 0 && netDebt(s.c) / oe < 4; } }
+  ],
+  size: [
+    { k:"any",   label:"Any" },
+    { k:"large", label:"Over $10b",  test:function(s){ return mcap(s.c) >= 10000; } },
+    { k:"mid",   label:"$1b–$10b", test:function(s){ var m = mcap(s.c); return m >= 1000 && m < 10000; } },
+    { k:"small", label:"Under $1b", test:function(s){ var m = mcap(s.c); return m > 0 && m < 1000; } }
+  ]
+};
+function bandDef(group, key){
+  var list = FILTER_BANDS[group] || [];
+  for (var i = 0; i < list.length; i++) if (list[i].k === key) return list[i];
+  return list[0];
+}
+function activeFilterCount(f){
+  f = f || cfg.filters;
+  var n = 0;
+  ["mult","debt","size"].forEach(function(g){ if (f[g] && f[g] !== "any") n++; });
+  return n;
+}
+/* Takes a scored row (not a company) because the multiple band needs s.m, which
+   visible() has no access to. */
+function passesFilters(s){
+  var f = cfg.filters || {};
+  var groups = ["mult","debt","size"];
+  for (var i = 0; i < groups.length; i++){
+    var def = bandDef(groups[i], f[groups[i]]);
+    if (def && def.test && !def.test(s)) return false;
+  }
+  return true;
+}
 function visible(c){
   if (BLOCKED[c.sector] && !cfg.showEx) return false;
   if (cfg.hidden.indexOf(c.sector) >= 0) return false;
@@ -1549,6 +1641,107 @@ document.getElementById("sectorStatsList").addEventListener("click", function(e)
   setTab("list");
 });
 
+/* ---------- advanced filters ---------- */
+/* Staged draft, committed only on Apply — same pattern as the sector dropdown, and for
+   the same reason: mutating the clicked chip's own class in place instead of re-rendering
+   the group avoids detaching the node mid-click. */
+var advDraft = null;
+
+function renderAdvCount(){
+  var n = activeFilterCount();
+  document.getElementById("advCount").innerHTML = n ? '<span class="badge">' + n + '</span>' : "";
+}
+function advGroupsHTML(d){
+  var groups = [["mult","Acquirer's multiple"],["debt","Net debt"],["size","Company size"]];
+  return groups.map(function(g){
+    var key = g[0];
+    return '<div class="fgroup"><span class="lab">' + g[1] + '</span><div class="fchips">' +
+      FILTER_BANDS[key].map(function(b){
+        return '<button class="fchip' + (d[key] === b.k ? ' on' : '') +
+          '" data-group="' + key + '" data-band="' + b.k + '">' + esc(b.label) + '</button>';
+      }).join("") + '</div></div>';
+  }).join("");
+}
+function presetListHTML(){
+  if (!cfg.presets.length){
+    return '<p class="hint" style="margin:0">No presets yet. Set some filters, then save them here for one-tap reuse.</p>';
+  }
+  return cfg.presets.map(function(p){
+    return '<div class="presetrow">' +
+      '<button class="use" data-preset="' + p.id + '">' + esc(p.name) + '</button>' +
+      '<button class="del" data-delpreset="' + p.id + '" aria-label="Delete preset">✕</button>' +
+      '</div>';
+  }).join("");
+}
+function renderAdvSheet(){
+  document.getElementById("advGroups").innerHTML = advGroupsHTML(advDraft || cfg.filters);
+  document.getElementById("presetList").innerHTML = presetListHTML();
+}
+function openAdv(){
+  advDraft = { mult: cfg.filters.mult, debt: cfg.filters.debt, size: cfg.filters.size };
+  renderAdvSheet();
+  document.getElementById("advSheet").classList.add("open");
+  document.getElementById("advBackdrop").classList.add("open");
+}
+function closeAdv(){
+  advDraft = null;
+  document.getElementById("advSheet").classList.remove("open");
+  document.getElementById("advBackdrop").classList.remove("open");
+}
+function commitFilters(f){
+  cfg.filters = { mult: f.mult, debt: f.debt, size: f.size };
+  saveCfg(); renderAdvCount(); paint();
+}
+document.getElementById("advBtn").addEventListener("click", openAdv);
+document.getElementById("advBackdrop").addEventListener("click", closeAdv);
+document.getElementById("btnAdvClose").addEventListener("click", closeAdv);
+document.getElementById("btnAdvApply").addEventListener("click", function(){
+  if (advDraft) commitFilters(advDraft);
+  closeAdv();
+});
+document.getElementById("btnAdvClear").addEventListener("click", function(){
+  commitFilters({ mult:"any", debt:"any", size:"any" });
+  closeAdv();
+  toast("Filters cleared");
+});
+document.getElementById("advGroups").addEventListener("click", function(e){
+  var b = e.target.closest(".fchip"); if (!b || !advDraft) return;
+  var g = b.dataset.group;
+  advDraft[g] = b.dataset.band;
+  b.parentNode.querySelectorAll(".fchip").forEach(function(el){ el.classList.remove("on"); });
+  b.classList.add("on");
+});
+document.getElementById("btnSavePreset").addEventListener("click", function(){
+  var d = advDraft || cfg.filters;
+  var name = prompt("Name this preset", "My screen");
+  if (!name) return;
+  cfg.presets.push({ id: uid(), name: String(name).slice(0, 40),
+    hidden: cfg.hidden.slice(), showEx: cfg.showEx,
+    mult: d.mult, debt: d.debt, size: d.size });
+  saveCfg();
+  renderAdvSheet();
+  toast("Preset saved");
+});
+document.getElementById("presetList").addEventListener("click", function(e){
+  var del = e.target.closest("[data-delpreset]");
+  if (del){
+    cfg.presets = cfg.presets.filter(function(p){ return p.id !== del.dataset.delpreset; });
+    saveCfg(); renderAdvSheet();
+    return;
+  }
+  var use = e.target.closest("[data-preset]");
+  if (!use) return;
+  var p = cfg.presets.filter(function(x){ return x.id === use.dataset.preset; })[0];
+  if (!p) return;
+  /* A preset captures the whole screen — sectors as well as the advanced bands — so
+     applying one restores both rather than leaving a stale sector selection behind. */
+  cfg.hidden = Array.isArray(p.hidden) ? p.hidden.slice() : [];
+  cfg.showEx = !!p.showEx;
+  commitFilters(p);
+  closeAdv();
+  toast("Applied " + p.name);
+});
+
 /* ---------- hero chart animation ---------- */
 (function(){
   var canvas = document.getElementById("heroCanvas");
@@ -1668,7 +1861,7 @@ function scatterLayout(items, W, H){
 function renderMap(scored){
   var host = document.getElementById("treemap");
   var pool = scored.filter(function(s){
-    return s.m != null && visible(s.c) && mcap(s.c) > 0;
+    return s.m != null && visible(s.c) && mcap(s.c) > 0 && passesFilters(s);
   }).sort(function(a,b){ return mcap(b.c) - mcap(a.c); }); // big first, small drawn on top
 
   var W = host.clientWidth || 340;
@@ -2052,11 +2245,14 @@ function renderList(scored){
       'or load the Australian list and pull the figures in.</p></div>';
     return;
   }
-  var pool = scored.filter(function(s){ return visible(s.c) && searched(s.c); });
+  var pool = scored.filter(function(s){ return visible(s.c) && searched(s.c) && passesFilters(s); });
   var key = cfg.sortBy || "multiple";
   var cmp = sortComparator(key);
   var ranked = pool.filter(function(s){ return s.m != null; }).sort(cmp);
-  var rest = pool.filter(function(s){ return s.m == null; });
+  /* A company with no computable multiple can't satisfy "under 8x", so once any advanced
+     filter is on the unranked tail is dropped rather than left sitting there looking
+     like the filter failed. */
+  var rest = activeFilterCount() ? [] : pool.filter(function(s){ return s.m == null; });
   if (key !== "multiple" && key !== "multiple_desc") rest.sort(cmp);
 
   var html = "";
@@ -2525,11 +2721,19 @@ Promise.all([store.get(KEY), store.get(CFGKEY)]).then(function(r){
     cfg.showEx = !!r[1].showEx;
     cfg.lastSync = r[1].lastSync || null;
     cfg.sortBy = SORTS.some(function(s){ return s.k === r[1].sortBy; }) ? r[1].sortBy : "multiple";
+    /* Validate each band against its allowed values rather than trusting what was stored —
+       a renamed band in a future version would otherwise silently filter everything out. */
+    var sf = (r[1].filters && typeof r[1].filters === "object") ? r[1].filters : {};
+    ["mult","debt","size"].forEach(function(g){
+      cfg.filters[g] = FILTER_BANDS[g].some(function(b){ return b.k === sf[g]; }) ? sf[g] : "any";
+    });
+    cfg.presets = Array.isArray(r[1].presets) ? r[1].presets : [];
   }
   document.getElementById("proxyUrl").value = cfg.proxy;
   document.getElementById("btnAutoToggle").textContent = "Auto-refresh: " + (cfg.auto ? "on" : "off");
   document.getElementById("sortLabel").textContent = (SORTS.filter(function(s){ return s.k === cfg.sortBy; })[0] || SORTS[0]).label;
   renderSyncStatus();
+  renderAdvCount();
   setTab(cfg.tab);
   syncNavHeight();
 
