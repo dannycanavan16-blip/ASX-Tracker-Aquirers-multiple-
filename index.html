@@ -81,18 +81,7 @@ body{
    nothing needs a matching padding offset. Pinning also means content can never slide
    under the status bar on an installed phone app — the header is always what's up there. */
 .topbar{position:sticky;top:0;z-index:50;background:var(--paper)}
-/* A full-size banner permanently on screen eats the list, so it compacts once you start
-   scrolling and returns when you come back to the top. */
-.topbar .hero{transition:min-height .22s ease,padding .22s ease}
-.topbar.scrolled .hero{min-height:calc(60px + env(safe-area-inset-top));
-  padding-top:calc(.45rem + env(safe-area-inset-top));padding-bottom:.45rem}
-.topbar.scrolled .hero h1{font-size:1.05rem}
-.topbar.scrolled .hero canvas{opacity:.55}
-.topbar .hero canvas{transition:opacity .22s ease}
 .topbar .searchrow{padding-bottom:.7rem}
-@media (prefers-reduced-motion: reduce){
-  .topbar .hero,.topbar .hero canvas{transition:none}
-}
 
 /* ---------- hero ---------- */
 /* Installed, the app draws under the status bar, so the hero's own padding has to clear
@@ -1451,12 +1440,6 @@ document.addEventListener("click", function(e){
   if (!e.target.closest("#sortWrap")) setSortOpen(false);
 });
 
-function syncTopbar(){
-  var el = document.getElementById("topbar");
-  if (el) el.classList.toggle("scrolled", window.scrollY > 40);
-}
-window.addEventListener("scroll", syncTopbar, { passive: true });
-
 function setTab(t){
   closeSheet();
   cfg.tab = t; saveCfg();
@@ -1470,9 +1453,7 @@ function setTab(t){
   document.querySelectorAll("#navbar .navitem[data-nav]").forEach(function(b){
     b.classList.toggle("sel", b.dataset.nav === t);
   });
-  /* Switching tabs starts you at the top, so the header should be full-size again. */
   window.scrollTo(0, 0);
-  syncTopbar();
   paint();
 }
 document.querySelectorAll("#navbar .navitem[data-nav]").forEach(function(btn){
