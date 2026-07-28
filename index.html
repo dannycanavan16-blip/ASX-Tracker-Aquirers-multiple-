@@ -68,13 +68,38 @@ body{
   background:var(--paper);color:var(--ink);font-family:var(--sans);
   font-size:15px;line-height:1.5;-webkit-font-smoothing:antialiased;padding:0 0 6.5rem;
   transition:background .2s,color .2s;
+  /* Short tabs (Map, Portfolio) otherwise leave the page shorter than the screen, which
+     is what makes the fixed navbar sit differently there than on the long tabs. */
+  min-height:100vh; min-height:100dvh;
 }
 .wrap{max-width:860px;margin:0 auto;padding:0 1.1rem}
 .tnum{font-variant-numeric:tabular-nums;font-feature-settings:"tnum" 1}
 
+/* ---------- sticky top block ---------- */
+/* Hero, sector/Filters pills and the search+sort row are pinned; only the list scrolls
+   beneath them. Sticky rather than fixed so the block keeps its space in normal flow and
+   nothing needs a matching padding offset. Pinning also means content can never slide
+   under the status bar on an installed phone app — the header is always what's up there. */
+.topbar{position:sticky;top:0;z-index:50;background:var(--paper)}
+/* A full-size banner permanently on screen eats the list, so it compacts once you start
+   scrolling and returns when you come back to the top. */
+.topbar .hero{transition:min-height .22s ease,padding .22s ease}
+.topbar.scrolled .hero{min-height:calc(60px + env(safe-area-inset-top));
+  padding-top:calc(.45rem + env(safe-area-inset-top));padding-bottom:.45rem}
+.topbar.scrolled .hero h1{font-size:1.05rem}
+.topbar.scrolled .hero canvas{opacity:.55}
+.topbar .hero canvas{transition:opacity .22s ease}
+.topbar .searchrow{padding-bottom:.7rem}
+@media (prefers-reduced-motion: reduce){
+  .topbar .hero,.topbar .hero canvas{transition:none}
+}
+
 /* ---------- hero ---------- */
+/* Installed, the app draws under the status bar, so the hero's own padding has to clear
+   it — otherwise the clock lands on the title on taller notches. */
 .hero{position:relative;overflow:hidden;background:linear-gradient(165deg,var(--hero1),var(--hero2));
-  padding:1.5rem 1.1rem;min-height:132px;color:#fff;display:flex;align-items:center}
+  padding:calc(1.5rem + env(safe-area-inset-top)) 1.1rem 1.5rem;
+  min-height:calc(132px + env(safe-area-inset-top));color:#fff;display:flex;align-items:center}
 .hero canvas{position:absolute;inset:0;width:100%;height:100%;display:block}
 .hero-top{position:relative;z-index:1;width:100%;display:flex;justify-content:space-between;
   align-items:center;gap:1rem;max-width:860px;margin:0 auto}
@@ -408,6 +433,13 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
 .navbar{position:fixed;left:0;right:0;bottom:0;z-index:70;display:flex;
   background:var(--paper-2);border-top:1px solid var(--rule);
   padding:.5rem max(.5rem,env(safe-area-inset-left)) calc(.5rem + env(safe-area-inset-bottom))}
+/* Installed on iOS, a fixed bottom:0 element doesn't always reach the physical screen
+   edge — where it lands differs between scrollable pages (List, Favourites) and short
+   ones (Map, Portfolio), leaving the page background showing as a band underneath.
+   Rather than fight that, extend the bar's own colour below itself so any such gap is
+   filled with the bar rather than a stripe of grey. */
+.navbar::after{content:"";position:absolute;top:100%;left:0;right:0;height:80px;
+  background:var(--paper-2);pointer-events:none}
 .navitem{flex:1;display:flex;flex-direction:column;align-items:center;gap:.25rem;
   background:transparent;border:0;box-shadow:none;border-radius:12px;
   font-family:var(--sans);font-size:.68rem;font-weight:600;color:var(--ink-soft);padding:.4rem .2rem}
@@ -425,30 +457,43 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
 </head>
 <body>
 
-  <header class="hero">
-    <canvas id="heroCanvas"></canvas>
-    <div class="hero-top">
-      <h1>The Acquirer's Multiple</h1>
-      <button class="themeswitch" id="btnTheme" role="switch" aria-checked="false" aria-label="Toggle light/dark theme">
-        <span class="thumb">☀</span>
-      </button>
+  <div class="topbar" id="topbar">
+    <header class="hero">
+      <canvas id="heroCanvas"></canvas>
+      <div class="hero-top">
+        <h1>The Acquirer's Multiple</h1>
+        <button class="themeswitch" id="btnTheme" role="switch" aria-checked="false" aria-label="Toggle light/dark theme">
+          <span class="thumb">☀</span>
+        </button>
+      </div>
+    </header>
+    <div class="wrap">
+      <div class="filterrow">
+        <div class="sectorfilter" id="sectorFilter">
+          <button class="filterbtn" id="sfBtn" aria-haspopup="true" aria-expanded="false">
+            <span id="sfLabel">All sectors</span>
+            <svg class="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"></path></svg>
+          </button>
+          <div class="filtermenu" id="sfMenu"></div>
+        </div>
+        <button class="filterbtn" id="advBtn" aria-haspopup="true">
+          <span>Filters</span><span id="advCount"></span>
+        </button>
+      </div>
+      <div class="searchrow" id="searchRow">
+        <input id="search" type="search" placeholder="Search ticker, name or sector" autocomplete="off">
+        <div class="sortwrap" id="sortWrap">
+          <button class="filterbtn sortbtn" id="sortBtn" aria-haspopup="true" aria-expanded="false">
+            <span id="sortLabel">Cheapest first</span>
+            <svg class="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"></path></svg>
+          </button>
+          <div class="filtermenu sortmenu" id="sortMenu"></div>
+        </div>
+      </div>
     </div>
-  </header>
+  </div>
 
 <div class="wrap">
-
-  <div class="filterrow">
-    <div class="sectorfilter" id="sectorFilter">
-      <button class="filterbtn" id="sfBtn" aria-haspopup="true" aria-expanded="false">
-        <span id="sfLabel">All sectors</span>
-        <svg class="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"></path></svg>
-      </button>
-      <div class="filtermenu" id="sfMenu"></div>
-    </div>
-    <button class="filterbtn" id="advBtn" aria-haspopup="true">
-      <span>Filters</span><span id="advCount"></span>
-    </button>
-  </div>
 
   <section id="viewMap">
     <div class="mapwrap" id="treemap"></div>
@@ -457,16 +502,6 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
   </section>
 
   <section id="viewList" style="display:none">
-    <div class="searchrow">
-      <input id="search" type="search" placeholder="Search ticker, name or sector" autocomplete="off">
-      <div class="sortwrap" id="sortWrap">
-        <button class="filterbtn sortbtn" id="sortBtn" aria-haspopup="true" aria-expanded="false">
-          <span id="sortLabel">Cheapest first</span>
-          <svg class="chev" viewBox="0 0 24 24"><path d="M6 9l6 6 6-6"></path></svg>
-        </button>
-        <div class="filtermenu sortmenu" id="sortMenu"></div>
-      </div>
-    </div>
     <div class="ledger" id="ledger"></div>
   </section>
 
@@ -1416,6 +1451,12 @@ document.addEventListener("click", function(e){
   if (!e.target.closest("#sortWrap")) setSortOpen(false);
 });
 
+function syncTopbar(){
+  var el = document.getElementById("topbar");
+  if (el) el.classList.toggle("scrolled", window.scrollY > 40);
+}
+window.addEventListener("scroll", syncTopbar, { passive: true });
+
 function setTab(t){
   closeSheet();
   cfg.tab = t; saveCfg();
@@ -1423,9 +1464,15 @@ function setTab(t){
   document.getElementById("viewList").style.display = t === "list" ? "" : "none";
   document.getElementById("viewFavs").style.display = t === "favs" ? "" : "none";
   document.getElementById("viewPortfolio").style.display = t === "portfolio" ? "" : "none";
+  /* Search and sort only mean anything on the List, and the row now lives in the pinned
+     header rather than inside the List section, so it has to be hidden per tab. */
+  document.getElementById("searchRow").style.display = t === "list" ? "" : "none";
   document.querySelectorAll("#navbar .navitem[data-nav]").forEach(function(b){
     b.classList.toggle("sel", b.dataset.nav === t);
   });
+  /* Switching tabs starts you at the top, so the header should be full-size again. */
+  window.scrollTo(0, 0);
+  syncTopbar();
   paint();
 }
 document.querySelectorAll("#navbar .navitem[data-nav]").forEach(function(btn){
@@ -1832,6 +1879,12 @@ document.getElementById("presetList").addEventListener("click", function(e){
 
   size(); seed(); frame();
   window.addEventListener("resize", function(){ size(); seed(); });
+  /* size() writes explicit pixel dimensions, so the canvas has to be re-sized whenever the
+     hero's box changes — including the CSS compact/expand on scroll, which fires no resize
+     event. Without this the canvas keeps its tall size and overflows the compacted hero. */
+  if (window.ResizeObserver){
+    new ResizeObserver(function(){ size(); seed(); }).observe(hero);
+  }
   document.addEventListener("visibilitychange", function(){
     paused = document.hidden;
     if (!paused && !reduced && !running) frame();
