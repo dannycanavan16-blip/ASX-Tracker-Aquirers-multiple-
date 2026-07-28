@@ -257,6 +257,30 @@ button.mini{font-size:.72rem;padding:.4rem .7rem}
 .drow .move .pct.down{color:var(--green)}
 .drow .move .pct.up{color:var(--oxide)}
 
+/* ---------- basket builder ---------- */
+.bkt-input{display:flex;gap:.5rem;align-items:center;margin-bottom:.3rem}
+.bkt-input input{flex:1}
+.bkt-summary{display:flex;flex-wrap:wrap;gap:.9rem;padding:.8rem .9rem;margin:.2rem 0 1rem;
+  background:var(--paper);border:1px solid var(--rule);border-radius:14px}
+.bkt-summary div{min-width:0}
+.bkt-summary .k{display:block;font-family:var(--cond);font-weight:600;font-size:.64rem;
+  letter-spacing:.08em;text-transform:uppercase;color:var(--ink-soft)}
+.bkt-summary .v{font-family:var(--sans);font-weight:700;font-size:.95rem;color:var(--ink)}
+.bktrow{display:grid;grid-template-columns:2.1rem 1fr auto;gap:.7rem;align-items:center;
+  padding:.55rem 0;border-bottom:1px solid var(--rule)}
+.bktrow:last-child{border-bottom:0}
+.bktrow .avatar{width:2.1rem;height:2.1rem}
+.bktrow .who .tkr{font-size:.9rem}
+.bktrow .who .co{font-size:.76rem}
+.bktrow .who .meta{font-size:.7rem;margin-top:.15rem}
+.bktrow .qty{text-align:right;white-space:nowrap}
+.bktrow .qty .sh{font-family:var(--sans);font-weight:700;font-size:.9rem;color:var(--ink)}
+.bktrow .qty .amt{display:block;font-size:.72rem;color:var(--ink-soft);margin-top:.1rem}
+.bktrow .qty .act{display:block;font-size:.72rem;font-weight:600;margin-top:.1rem}
+.bktrow .qty .act.buy{color:var(--blue)}
+.bktrow .qty .act.sell{color:var(--oxide)}
+.bktrow .qty .act.ok{color:var(--green)}
+
 .ledger{background:var(--paper-2);border:1px solid var(--rule);border-radius:18px;
   box-shadow:var(--shadow-card);overflow:hidden}
 .rowwrap{position:relative;overflow:hidden;border-bottom:1px solid var(--rule)}
@@ -569,6 +593,7 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
     <button id="btnCompare">Compare companies</button>
     <button id="btnSectorStats">Sector stats</button>
     <button id="btnWhatsChanged">What's changed</button>
+    <button id="btnBasket">Basket builder</button>
     <button id="btnImport">Import CSV</button>
     <button id="btnExport">Export CSV</button>
     <button class="ghost" id="btnClear">Clear all</button>
@@ -716,6 +741,27 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
   <div id="sectorStatsList"></div>
 </div>
 
+<div class="sheet-backdrop" id="basketBackdrop"></div>
+<div class="sheet" id="basketSheet">
+  <div class="sheet-handle"></div>
+  <div class="sheet-head"><h2>Basket builder</h2>
+    <button class="sheet-x" id="btnBasketClose" aria-label="Close">✕</button></div>
+  <p class="hint" style="margin:0 0 .9rem">An equal-weighted basket off the top of the ranking — the way this strategy is meant to be run, rather than a bet on the cheapest single name. Arithmetic only: nothing is bought, sold or saved to your portfolio.</p>
+
+  <div class="fgroup">
+    <span class="lab">Basket size</span>
+    <div class="fchips" id="basketSizes"></div>
+  </div>
+  <div class="fgroup">
+    <span class="lab">Capital to invest</span>
+    <div class="bkt-input">
+      <input id="basketCapital" inputmode="decimal" placeholder="e.g. 20000">
+    </div>
+  </div>
+
+  <div id="basketBody"></div>
+</div>
+
 <div class="sheet-backdrop" id="digestBackdrop"></div>
 <div class="sheet" id="digestSheet">
   <div class="sheet-handle"></div>
@@ -804,7 +850,8 @@ var CYCLICAL = {"Materials":1,"Energy":1};
 var ZONE_MAX = 8;
 
 var data = [], cfg = { proxy:"", auto:false, tab:"map", hidden:[], showEx:false, lastSync:null,
-  sortBy:"multiple", filters:{ mult:"any", debt:"any", size:"any", data:"any" }, presets:[], lastSeen:"" };
+  sortBy:"multiple", filters:{ mult:"any", debt:"any", size:"any", data:"any" }, presets:[], lastSeen:"",
+  basket:{ size:20, capital:"" } };
 var openId = null, pinnedId = null, pasteOpen = null, busy = false;
 var lastDeleted = null, undoTimer = null;
 
@@ -1119,6 +1166,47 @@ function scoreAll(){
     var a = assess(c);
     return { c:c, a:a, m: a.excluded ? null : multiple(c) };
   });
+}
+
+/* ---------- basket builder ---------- */
+var BASKET_SIZES = [10, 20, 30];
+
+/* Equal-weighted basket off the top of the ranking — the way the strategy is actually run,
+   rather than a bet on the single cheapest name. Built from whatever screen is currently
+   set (filters included), so the caller must show the universe count alongside it. */
+function basketData(){
+  var size = cfg.basket.size || 20;
+  var capital = num(cfg.basket.capital);
+
+  var pool = scoreAll()
+    .filter(function(s){ return s.m != null && visible(s.c) && passesFilters(s); })
+    .sort(function(a, b){ return a.m - b.m; });
+
+  var picks = pool.slice(0, size);
+  var target = picks.length ? capital / picks.length : 0;
+
+  var rows = picks.map(function(s){
+    var price = num(s.c.price);
+    /* Whole shares only — you can't buy fractions on the ASX, and the rounding-down
+       leftover is real money, so it's reported rather than quietly dropped. */
+    var shares = price > 0 ? Math.floor(target / price) : 0;
+    var cost = shares * price;
+    var held = lotsShares(s.c);
+    return { s:s, c:s.c, m:s.m, price:price, shares:shares, cost:cost, held:held,
+      delta: shares - held, tooDear: price > 0 && shares === 0 && target > 0 };
+  });
+
+  var invested = rows.reduce(function(t, r){ return t + r.cost; }, 0);
+
+  /* The other half of a rebalance: what you hold that the ranking no longer wants. */
+  var ids = {};
+  picks.forEach(function(s){ ids[s.c.id] = true; });
+  var exits = data.filter(function(c){ return isHeld(c) && !ids[c.id]; })
+    .sort(function(a, b){ return holdingValue(b) - holdingValue(a); });
+
+  return { rows:rows, exits:exits, target:target, capital:capital,
+    invested:invested, remainder: capital - invested,
+    universe: pool.length, size:size, short: picks.length < size };
 }
 
 /* ===================== Yahoo paste parser ===================== */
@@ -1814,6 +1902,98 @@ document.getElementById("sectorStatsList").addEventListener("click", function(e)
   saveCfg();
   closeStats();
   setTab("list");
+});
+
+/* ---------- basket builder ---------- */
+function basketSizesHTML(){
+  return BASKET_SIZES.map(function(n){
+    return '<button class="fchip' + (cfg.basket.size === n ? ' on' : '') +
+      '" data-bsize="' + n + '">' + n + ' names</button>';
+  }).join("");
+}
+function basketRowHTML(r){
+  var act, cls;
+  if (r.tooDear){ act = "share costs more than the target"; cls = ""; }
+  else if (r.delta > 0){ act = "buy " + r.delta; cls = "buy"; }
+  else if (r.delta < 0){ act = "sell " + Math.abs(r.delta); cls = "sell"; }
+  else { act = r.shares ? "already held" : "—"; cls = r.shares ? "ok" : ""; }
+  var flags = r.s.a.flags.filter(function(f){ return f.k === "warn" || f.k === "stop"; })
+    .map(function(f){ return esc(f.t); }).join(" · ");
+  return '<div class="bktrow">' + avatarHTML(r.c) +
+    '<div class="who name-block">' +
+      '<span class="tkr">' + esc(r.c.tkr || "—") + '</span>' +
+      '<span class="co">' + esc(r.c.co) + '</span>' +
+      '<div class="meta tnum">' + fmtX(r.m) + ' · ' + fmtD(r.price) +
+        (flags ? ' · ' + flags : '') + '</div>' +
+    '</div>' +
+    '<div class="qty tnum"><span class="sh">' + r.shares + ' sh</span>' +
+      '<span class="amt">' + fmtD(r.cost) + '</span>' +
+      '<span class="act ' + cls + '">' + esc(act) + '</span>' +
+    '</div></div>';
+}
+function renderBasket(){
+  document.getElementById("basketSizes").innerHTML = basketSizesHTML();
+  var body = document.getElementById("basketBody");
+  var b = basketData();
+
+  if (!b.universe){
+    body.innerHTML = '<p class="hint">Nothing ranks under the current filters, so there is no basket to build. Clear a filter or pull some financials first.</p>';
+    return;
+  }
+  if (!b.capital){
+    body.innerHTML = '<p class="hint">Enter the amount you want to spread across ' +
+      b.rows.length + ' companies and this will size each position.</p>';
+    return;
+  }
+
+  var universeNote = 'From the ' + b.universe + ' companies passing your current filters, cheapest first.' +
+    (b.short ? ' Only ' + b.rows.length + ' available, so the basket is that size.' : '');
+
+  body.innerHTML =
+    '<div class="bkt-summary tnum">' +
+      '<div><span class="k">Per position</span><span class="v">' + fmtD(b.target) + '</span></div>' +
+      '<div><span class="k">Invested</span><span class="v">' + fmtD(b.invested) + '</span></div>' +
+      '<div><span class="k">Cash left</span><span class="v">' + fmtD(b.remainder) + '</span></div>' +
+    '</div>' +
+    '<p class="hint" style="margin:-.6rem 0 1rem">' + esc(universeNote) + '</p>' +
+    '<div class="dgroup"><span class="lab">The basket</span>' +
+      b.rows.map(basketRowHTML).join("") + '</div>' +
+    (b.exits.length
+      ? '<div class="dgroup"><span class="lab">Held but not in the basket</span>' +
+          b.exits.map(function(c){
+            return '<div class="bktrow">' + avatarHTML(c) +
+              '<div class="who name-block"><span class="tkr">' + esc(c.tkr || "—") + '</span>' +
+              '<span class="co">' + esc(c.co) + '</span></div>' +
+              '<div class="qty tnum"><span class="sh">' + lotsShares(c) + ' sh</span>' +
+              '<span class="amt">' + fmtD(holdingValue(c)) + '</span>' +
+              '<span class="act sell">exit candidate</span></div></div>';
+          }).join("") +
+        '<p class="hint" style="margin:.6rem 0 0">These have run out of the ranking — what an annual rebalance would typically sell.</p></div>'
+      : "");
+}
+function openBasket(){
+  document.getElementById("basketCapital").value = cfg.basket.capital || "";
+  renderBasket();
+  document.getElementById("basketSheet").classList.add("open");
+  document.getElementById("basketBackdrop").classList.add("open");
+}
+function closeBasket(){
+  document.getElementById("basketSheet").classList.remove("open");
+  document.getElementById("basketBackdrop").classList.remove("open");
+}
+document.getElementById("btnBasket").addEventListener("click", function(){
+  closeSheet(); openBasket();
+});
+document.getElementById("btnBasketClose").addEventListener("click", closeBasket);
+document.getElementById("basketBackdrop").addEventListener("click", closeBasket);
+document.getElementById("basketSizes").addEventListener("click", function(e){
+  var b = e.target.closest("[data-bsize]"); if (!b) return;
+  cfg.basket.size = Number(b.dataset.bsize);
+  saveCfg(); renderBasket();
+});
+document.getElementById("basketCapital").addEventListener("input", function(){
+  cfg.basket.capital = this.value;
+  saveCfg(); renderBasket();
 });
 
 /* ---------- "what changed" digest ---------- */
@@ -3006,6 +3186,11 @@ Promise.all([store.get(KEY), store.get(CFGKEY)]).then(function(r){
     });
     cfg.presets = Array.isArray(r[1].presets) ? r[1].presets : [];
     cfg.lastSeen = /^\d{4}-\d{2}-\d{2}$/.test(r[1].lastSeen) ? r[1].lastSeen : "";
+    var sb = (r[1].basket && typeof r[1].basket === "object") ? r[1].basket : {};
+    cfg.basket = {
+      size: BASKET_SIZES.indexOf(Number(sb.size)) >= 0 ? Number(sb.size) : 20,
+      capital: typeof sb.capital === "string" || typeof sb.capital === "number" ? String(sb.capital) : ""
+    };
   }
   document.getElementById("proxyUrl").value = cfg.proxy;
   document.getElementById("btnAutoToggle").textContent = "Auto-refresh: " + (cfg.auto ? "on" : "off");
