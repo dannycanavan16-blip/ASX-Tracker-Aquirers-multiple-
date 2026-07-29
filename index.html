@@ -423,6 +423,12 @@ textarea[data-k="notes"]{min-height:150px}
 .pastebox.open{display:block}
 .alert{border-left:3px solid var(--oxide);background:var(--oxide-wash);border-radius:0 10px 10px 0;
   padding:.5rem .7rem;margin-top:.6rem;font-size:.8rem;color:var(--oxide)}
+/* Converted rather than broken — same shape, but it's information, not a warning. */
+.alert.ok{border-left-color:var(--green);background:var(--green-wash);color:var(--green)}
+.fxrow{margin-top:.5rem;max-width:14rem}
+.fxrow .lab{display:block;font-family:var(--cond);font-weight:600;font-size:.63rem;
+  letter-spacing:.05em;text-transform:uppercase;opacity:.8;margin-bottom:.2rem}
+.fxrow input{width:100%}
 
 /* ---------- misc ---------- */
 .empty{padding:2.4rem .75rem;text-align:center}
@@ -718,7 +724,8 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
     <p>Open <code>au.finance.yahoo.com/quote/BHP.AX/financials/</code>, select the table, copy, and paste it into the box inside any company. Same for the balance sheet tab. The parser picks out what it recognises and leaves the rest alone. Yahoo prints everything in thousands — that is handled. What is not handled is which impairments were genuinely one-off, so still read the annual report before you trust a number.</p>
 
     <h3>The currency trap</h3>
-    <p>A handful of Australian companies — BHP, Rio, South32, Ansell, Woodside among them — report in USD while trading in AUD. Mixing a USD earnings figure with an AUD market cap produces a multiple that means nothing. The screener flags the mismatch when it can detect one — take it seriously.</p>
+    <p>A handful of Australian companies — BHP, Rio, South32, Ansell, Woodside among them — report in USD while trading in AUD. Mixing a USD earnings figure with an AUD market cap produces a multiple that means nothing, so the app converts instead: every reported line item — debt, cash, earnings, revenue — is multiplied into the currency the share price is quoted in before anything is calculated. The share count needs no conversion, and neither does the price.</p>
+    <p>The rate comes down with your prices, through the same proxy call — Yahoo treats a currency pair as an ordinary ticker, so nothing needed adding to your script. <b>Until there's a rate, those companies are left out of the ranking entirely</b> rather than ranked on a number built from two currencies. Open one and you can type the rate by hand instead; it's stored per currency pair, so setting it once for USD fixes every USD reporter at once.</p>
 
     <h3>The three line items</h3>
     <ul>
@@ -918,7 +925,7 @@ var ZONE_MAX = 8;
 
 var data = [], cfg = { proxy:"", auto:false, tab:"map", hidden:[], showEx:false, lastSync:null,
   sortBy:"multiple", filters:{ mult:"any", debt:"any", size:"any", data:"any" }, presets:[], lastSeen:"",
-  basket:{ size:20, capital:"", lastRebalance:"" } };
+  basket:{ size:20, capital:"", lastRebalance:"" }, fx:{ rates:{}, updated:0 } };
 var openId = null, pinnedId = null, pasteOpen = null, busy = false;
 var detailId = null, buyOpen = null;
 var lastDeleted = null, undoTimer = null;
@@ -955,11 +962,38 @@ function mcap(c){
   if (String(c.mcapDirect).trim() !== "") return num(c.mcapDirect);
   return num(c.price) * num(c.shares);
 }
-function ev(c){ return mcap(c) + num(c.stDebt) + num(c.ltDebt) + num(c.pref) + num(c.minority) - num(c.cash); }
-function netDebt(c){ return num(c.stDebt) + num(c.ltDebt) - num(c.cash); }
+/* ---------- the currency trap ----------
+   BHP, Rio, South32, Woodside and Ansell report in USD but trade in AUD. Adding USD debt to an
+   AUD market cap and dividing by USD earnings gives a number that means nothing, so every
+   financial line item is read through fin(), which converts it into whatever currency the price
+   is quoted in. The share price and the share count need no conversion — one is already in the
+   price's currency, the other is a count. */
+function fxPair(from, to){ return String(from || "").toUpperCase() + String(to || "").toUpperCase(); }
+function fxRate(from, to){
+  from = String(from || "").toUpperCase();
+  to = String(to || "").toUpperCase();
+  /* An unknown currency on either side is not the same as a rate of 1 — say so, and let the
+     caller decide, rather than quietly pretending the figures line up. */
+  if (!from || !to) return 1;
+  if (from === to) return 1;
+  var r = num((cfg.fx && cfg.fx.rates) ? cfg.fx.rates[fxPair(from, to)] : 0);
+  return r > 0 ? r : null;
+}
+function ccyClash(c){
+  return !!(c.ccy && c.priceCcy && c.ccy.toUpperCase() !== c.priceCcy.toUpperCase());
+}
+function ccyRate(c){ return fxRate(c.ccy, c.priceCcy); }
+/* Missing rate falls back to 1 so the arithmetic stays finite; assess() is what stops such a
+   company from ranking, so the unconverted figure is never presented as a multiple. */
+function fin(c, k){
+  var r = ccyRate(c);
+  return num(c[k]) * (r == null ? 1 : r);
+}
+function ev(c){ return mcap(c) + fin(c,"stDebt") + fin(c,"ltDebt") + fin(c,"pref") + fin(c,"minority") - fin(c,"cash"); }
+function netDebt(c){ return fin(c,"stDebt") + fin(c,"ltDebt") - fin(c,"cash"); }
 function opEarn(c){
-  if (c.mode === "topdown") return num(c.ebit) + num(c.oneoffs);
-  return num(c.revenue) - num(c.cogs) - num(c.sga) - num(c.da);
+  if (c.mode === "topdown") return fin(c,"ebit") + fin(c,"oneoffs");
+  return fin(c,"revenue") - fin(c,"cogs") - fin(c,"sga") - fin(c,"da");
 }
 function multiple(c){
   var oe = opEarn(c); if (oe <= 0) return null;
@@ -967,9 +1001,6 @@ function multiple(c){
   return e / oe;
 }
 function hasFigures(c){ return mcap(c) > 0 || opEarn(c) !== 0; }
-function ccyClash(c){
-  return !!(c.ccy && c.priceCcy && c.ccy.toUpperCase() !== c.priceCcy.toUpperCase());
-}
 
 /* ===================== portfolio ===================== */
 /* ---------- calendar helpers ----------
@@ -1117,7 +1148,19 @@ function assess(c){
   var oe = opEarn(c);
   if (oe <= 0){ out.excluded = true; out.reason = "Operating earnings are zero or negative";
     out.flags.push({t:"No earnings", k:"stop"}); return out; }
-  if (ccyClash(c)) out.flags.push({t:"Currency mismatch " + c.ccy + "/" + c.priceCcy, k:"stop"});
+  /* Previously this was a warning on a company that still ranked — so a multiple built from two
+     currencies could sit in the top 20 the plan tells you to buy. Without a rate it now doesn't
+     rank at all; with one it's just a note about what was converted. */
+  if (ccyClash(c)){
+    var fxr = ccyRate(c);
+    if (fxr == null){
+      out.excluded = true;
+      out.reason = "Reports in " + c.ccy + " but trades in " + c.priceCcy + " — needs an exchange rate";
+      out.flags.push({t:"Needs " + c.ccy + "/" + c.priceCcy + " rate", k:"stop"});
+      return out;
+    }
+    out.flags.push({t:c.ccy + " figures at " + fxr.toFixed(2), k:"info"});
+  }
   if (CYCLICAL[c.sector]) out.flags.push({t:"Cyclical", k:"warn"});
   var nd = netDebt(c);
   if (nd / oe > 4) out.flags.push({t:"Net debt " + (nd/oe).toFixed(1) + "×", k:"warn"});
@@ -1551,7 +1594,8 @@ async function refreshPrices(silent){
         got++;
       });
     }
-    save(); paint();
+    await refreshFxRates();
+    save(); saveCfg(); paint();
     setStatus("Updated " + got + " of " + live.length + " at " +
       new Date().toLocaleTimeString([], {hour:"2-digit", minute:"2-digit"}), "good");
     if (!silent) toast(got + " prices updated");
@@ -1562,6 +1606,30 @@ async function refreshPrices(silent){
     busy = false;
     btn.disabled = false; btn.textContent = "Refresh prices";
   }
+}
+
+/* Yahoo treats a currency pair as an ordinary ticker, so the rates come back through the same
+   fn=quote the proxy already answers — no change to your Apps Script. Failure here is deliberately
+   quiet: the prices it was called after are still good, and a missing rate just means the handful
+   of foreign reporters sit out the ranking until one arrives. */
+async function refreshFxRates(){
+  var want = {};
+  data.forEach(function(c){
+    if (ccyClash(c)) want[fxPair(c.ccy, c.priceCcy)] = c.ccy.toUpperCase() + c.priceCcy.toUpperCase() + "=X";
+  });
+  var pairs = Object.keys(want);
+  if (!pairs.length) return;
+  try{
+    var res = await proxyGet({ fn:"quote", tickers: pairs.map(function(p){ return want[p]; }).join(",") });
+    if (!res || res.error) return;
+    if (!cfg.fx) cfg.fx = { rates:{}, updated:0 };
+    var hits = 0;
+    pairs.forEach(function(p){
+      var q = res[want[p]];
+      if (q && !q.error && q.price > 0){ cfg.fx.rates[p] = q.price; hits++; }
+    });
+    if (hits) cfg.fx.updated = Date.now();
+  }catch(err){ /* rates are a bonus on top of prices, never a reason to fail the refresh */ }
 }
 
 var FIN_KEYS = ["revenue","cogs","sga","da","ebit","stDebt","ltDebt",
@@ -2995,11 +3063,31 @@ function notesFieldsetHTML(c){
     '<p class="hint">Private to this browser — not fetched from anywhere, not included in CSV export.</p></div>';
 }
 
+/* Two states, not one: either the figures are being converted and it says at what rate, or no
+   rate is known and there's a box to type one. The rate is stored per currency pair rather than
+   per company, so setting it once for USD fixes every USD reporter at once. */
+function ccyAlertHTML(c){
+  if (!ccyClash(c)) return '';
+  var from = String(c.ccy).toUpperCase(), to = String(c.priceCcy).toUpperCase();
+  var r = ccyRate(c);
+  if (r != null){
+    return '<div class="alert ok"><b>' + esc(from) + ' figures converted.</b> Everything reported in ' +
+      esc(from) + ' is multiplied by ' + r.toFixed(4) + ' to match the ' + esc(to) + ' share price' +
+      (cfg.fx && cfg.fx.updated ? ', rate pulled ' + ago(cfg.fx.updated) : '') + '.' +
+      '<div class="fxrow"><label><span class="lab">1 ' + esc(from) + ' = ? ' + esc(to) + '</span>' +
+      '<input inputmode="decimal" data-fx="' + esc(fxPair(from, to)) + '" value="' + r + '"></label></div></div>';
+  }
+  return '<div class="alert"><b>Currency mismatch.</b> Financials are in ' + esc(from) +
+    ' but the price is in ' + esc(to) + ', so this company is left out of the ranking until there\'s a rate to convert with. ' +
+    'Refresh prices to fetch one, or type it here.' +
+    '<div class="fxrow"><label><span class="lab">1 ' + esc(from) + ' = ? ' + esc(to) + '</span>' +
+    '<input inputmode="decimal" data-fx="' + esc(fxPair(from, to)) + '" placeholder="1.52"></label></div></div>';
+}
+
 function editorHTML(c){
   var td = c.mode === "topdown";
   return '<div class="editor">' +
-  (ccyClash(c) ? '<div class="alert"><b>Currency mismatch.</b> Financials are in ' + esc(c.ccy) +
-    ' but the price is in ' + esc(c.priceCcy) + '. Convert one side before you believe the multiple.</div>' : '') +
+  ccyAlertHTML(c) +
   '<div class="fieldset"><div class="fs-title"><span>Identity</span>' +
     '<span style="font-family:var(--mono);font-weight:400;letter-spacing:0;text-transform:none">' +
     (c.finUpdated ? "financials " + ago(c.finUpdated) : "") + '</span></div><div class="grid">' +
@@ -3416,6 +3504,21 @@ function ledgerClick(e){
    would replace the input under the cursor and lose focus. */
 function ledgerInput(e){
   var el = e.target;
+  /* A typed exchange rate lands in cfg, not on the company — it applies to every company
+     reporting in that currency. Repainting on each keystroke would take the box away, so this
+     saves and lets the next repaint pick it up. */
+  if (el.dataset && el.dataset.fx){
+    if (!cfg.fx) cfg.fx = { rates:{}, updated:0 };
+    var v = num(el.value);
+    if (v > 0){ cfg.fx.rates[el.dataset.fx] = v; cfg.fx.updated = Date.now(); }
+    else delete cfg.fx.rates[el.dataset.fx];
+    saveCfg();
+    var host = el.closest(".rowwrap") || el.closest(".sheet");
+    var calc = host && host.querySelector(".calc");
+    var c2 = data.filter(function(x){ return x.id === detailId; })[0];
+    if (calc && c2) calc.innerHTML = calcHTML(c2);
+    return;
+  }
   if (!el.dataset || !el.dataset.k) return;
   var c = data.filter(function(x){ return x.id === el.dataset.id; })[0];
   if (!c) return;
@@ -3720,6 +3823,15 @@ Promise.all([store.get(KEY), store.get(CFGKEY)]).then(function(r){
       capital: typeof sb.capital === "string" || typeof sb.capital === "number" ? String(sb.capital) : "",
       lastRebalance: /^\d{4}-\d{2}-\d{2}$/.test(sb.lastRebalance) ? sb.lastRebalance : ""
     };
+    /* Only keep pairs that look like pairs and rates that are usable numbers — a malformed
+       stored value must degrade to "no rate" rather than silently scaling every figure. */
+    var sfx = (r[1].fx && typeof r[1].fx === "object") ? r[1].fx : {};
+    cfg.fx = { rates:{}, updated: num(sfx.updated) };
+    if (sfx.rates && typeof sfx.rates === "object"){
+      Object.keys(sfx.rates).forEach(function(k){
+        if (/^[A-Z]{6}$/.test(k) && num(sfx.rates[k]) > 0) cfg.fx.rates[k] = num(sfx.rates[k]);
+      });
+    }
   }
   document.getElementById("proxyUrl").value = cfg.proxy;
   document.getElementById("btnAutoToggle").textContent = "Auto-refresh: " + (cfg.auto ? "on" : "off");
