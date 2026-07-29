@@ -726,6 +726,8 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
     <h3>The currency trap</h3>
     <p>A handful of Australian companies — BHP, Rio, South32, Ansell, Woodside among them — report in USD while trading in AUD. Mixing a USD earnings figure with an AUD market cap produces a multiple that means nothing, so the app converts instead: every reported line item — debt, cash, earnings, revenue — is multiplied into the currency the share price is quoted in before anything is calculated. The share count needs no conversion, and neither does the price.</p>
     <p>The rate comes down with your prices, through the same proxy call — Yahoo treats a currency pair as an ordinary ticker, so nothing needed adding to your script. <b>Until there's a rate, those companies are left out of the ranking entirely</b> rather than ranked on a number built from two currencies. Open one and you can type the rate by hand instead; it's stored per currency pair, so setting it once for USD fixes every USD reporter at once.</p>
+    <p>For any of this to happen the app has to know which currency a company reports in, and that isn't something it can work out on its own — it comes from your proxy, from a Yahoo paste, or from you. Every company now has a <b>Reports in</b> dropdown under Identity. Blank means "not known", which is treated as matching the share price.</p>
+    <p>These tickers are set to USD automatically the first time you open the app, but only where nothing was recorded already: <code>BHP RIO S32 WDS STO ANN JHX AMC CPU QBE RMD BXB CSL CRN SQ2</code>. Treat that as a starting point rather than gospel — check the ones you actually hold, because a company wrongly marked USD has its multiple wrong by about half. Changing the dropdown back to AUD fixes it immediately.</p>
 
     <h3>The three line items</h3>
     <ul>
@@ -979,10 +981,35 @@ function fxRate(from, to){
   var r = num((cfg.fx && cfg.fx.rates) ? cfg.fx.rates[fxPair(from, to)] : 0);
   return r > 0 ? r : null;
 }
+/* Every ticker here is an ASX ticker — yTicker appends .AX — so a share price with no stated
+   currency is Australian dollars. Without this default, a proxy that doesn't report the quote
+   currency leaves priceCcy blank, no mismatch is ever detected, and the conversion above never
+   runs at all. Computed rather than written to the record, so a proxy that does report it wins. */
+function priceCcyOf(c){ return String(c.priceCcy || "AUD").toUpperCase(); }
 function ccyClash(c){
-  return !!(c.ccy && c.priceCcy && c.ccy.toUpperCase() !== c.priceCcy.toUpperCase());
+  return !!(c.ccy && c.ccy.toUpperCase() !== priceCcyOf(c));
 }
-function ccyRate(c){ return fxRate(c.ccy, c.priceCcy); }
+function ccyRate(c){ return fxRate(c.ccy, priceCcyOf(c)); }
+
+/* Which ASX companies report in something other than AUD is a fact the app can only learn from
+   the proxy's fundamentals response or a Yahoo paste, and neither is guaranteed. This list seeds
+   the ones that are widely known, and only where nothing is recorded yet — it is a starting
+   point, not gospel. Every one of them shows in the company's "Reports in" dropdown and is
+   changed back in a tap, which matters: a company wrongly marked USD has its multiple wrong by
+   about half. */
+var USD_REPORTERS = ["BHP","RIO","S32","WDS","STO","ANN","JHX","AMC","CPU","QBE","RMD","BXB","CSL","CRN","SQ2"];
+var CURRENCIES = ["","AUD","USD","NZD","GBP","EUR"];
+function seedReportCurrencies(){
+  var known = {};
+  USD_REPORTERS.forEach(function(t){ known[t] = "USD"; });
+  var n = 0;
+  data.forEach(function(c){
+    if (c.ccy) return;
+    var t = String(c.tkr || "").trim().toUpperCase();
+    if (known[t]){ c.ccy = known[t]; n++; }
+  });
+  return n;
+}
 /* Missing rate falls back to 1 so the arithmetic stays finite; assess() is what stops such a
    company from ranking, so the unconverted figure is never presented as a multiple. */
 function fin(c, k){
@@ -1155,8 +1182,8 @@ function assess(c){
     var fxr = ccyRate(c);
     if (fxr == null){
       out.excluded = true;
-      out.reason = "Reports in " + c.ccy + " but trades in " + c.priceCcy + " — needs an exchange rate";
-      out.flags.push({t:"Needs " + c.ccy + "/" + c.priceCcy + " rate", k:"stop"});
+      out.reason = "Reports in " + c.ccy + " but trades in " + priceCcyOf(c) + " — needs an exchange rate";
+      out.flags.push({t:"Needs " + c.ccy + "/" + priceCcyOf(c) + " rate", k:"stop"});
       return out;
     }
     out.flags.push({t:c.ccy + " figures at " + fxr.toFixed(2), k:"info"});
@@ -1615,7 +1642,7 @@ async function refreshPrices(silent){
 async function refreshFxRates(){
   var want = {};
   data.forEach(function(c){
-    if (ccyClash(c)) want[fxPair(c.ccy, c.priceCcy)] = c.ccy.toUpperCase() + c.priceCcy.toUpperCase() + "=X";
+    if (ccyClash(c)) want[fxPair(c.ccy, priceCcyOf(c))] = c.ccy.toUpperCase() + priceCcyOf(c) + "=X";
   });
   var pairs = Object.keys(want);
   if (!pairs.length) return;
@@ -3068,7 +3095,7 @@ function notesFieldsetHTML(c){
    per company, so setting it once for USD fixes every USD reporter at once. */
 function ccyAlertHTML(c){
   if (!ccyClash(c)) return '';
-  var from = String(c.ccy).toUpperCase(), to = String(c.priceCcy).toUpperCase();
+  var from = String(c.ccy).toUpperCase(), to = priceCcyOf(c);
   var r = ccyRate(c);
   if (r != null){
     return '<div class="alert ok"><b>' + esc(from) + ' figures converted.</b> Everything reported in ' +
@@ -3097,7 +3124,16 @@ function editorHTML(c){
       SECTORS.map(function(s){ return '<option' + (s === c.sector ? ' selected' : '') + '>' + s + '</option>'; }).join("") +
     '</select></label>' +
     '<label><span class="lab">Website (logo fallback)</span><input data-id="' + c.id + '" data-k="website" value="' + esc(c.website) + '" placeholder="bhp.com"></label>' +
+    /* The one fact the multiple can't be trusted without, and until now there was nowhere to
+       state it. Blank means "not known", which is treated as matching the price. */
+    '<label><span class="lab">Reports in</span><select data-id="' + c.id + '" data-k="ccy">' +
+      CURRENCIES.map(function(x){
+        return '<option value="' + x + '"' + (x === String(c.ccy || "").toUpperCase() ? ' selected' : '') +
+          '>' + (x || "Not known") + '</option>';
+      }).join("") +
+    '</select></label>' +
   '</div>' +
+  '<p class="hint">Financials in a different currency to the share price are converted before the multiple is worked out. Most ASX companies report in AUD; BHP, Rio, South32 and a handful of others report in USD.</p>' +
   '<div class="ed-actions">' +
     '<button class="mini" data-act="paste" data-id="' + c.id + '">Paste from Yahoo</button>' +
     '<button class="mini" data-act="fetch" data-id="' + c.id + '">Fetch financials</button>' +
@@ -3528,11 +3564,15 @@ function ledgerInput(e){
   var calc = host && host.querySelector(".calc");
   if (calc) calc.innerHTML = calcHTML(c);
 }
+/* Selects repaint on change rather than on input — both of these alter which companies rank, so
+   the list has to be rebuilt, and neither is a field you're mid-way through typing into. */
 function ledgerChange(e){
-  if (e.target.dataset && e.target.dataset.k === "sector"){
-    var c = data.filter(function(x){ return x.id === e.target.dataset.id; })[0];
-    if (c){ c.sector = e.target.value; save(); paint(); }
-  }
+  var k = e.target.dataset && e.target.dataset.k;
+  if (k !== "sector" && k !== "ccy") return;
+  var c = data.filter(function(x){ return x.id === e.target.dataset.id; })[0];
+  if (!c) return;
+  c[k] = e.target.value;
+  save(); paint();
 }
 ["ledger","coSheet"].forEach(function(id){
   var host = document.getElementById(id);
@@ -3838,8 +3878,19 @@ Promise.all([store.get(KEY), store.get(CFGKEY)]).then(function(r){
   document.getElementById("sortLabel").textContent = (SORTS.filter(function(s){ return s.k === cfg.sortBy; })[0] || SORTS[0]).label;
   renderSyncStatus();
   renderAdvCount();
+  /* Fill in the reporting currency for the well-known foreign reporters before the first paint,
+     so their multiples are either converted or withheld rather than shown wrong. */
+  if (seedReportCurrencies()) save();
+
   setTab(cfg.tab);
   syncNavHeight();
+
+  /* Seeding above can put a company into "needs a rate" the moment the app opens. Fetching the
+     rate straight away — one small request — closes that gap instead of leaving it greyed out
+     until the next manual price refresh. */
+  if (cfg.proxy && data.some(function(c){ return ccyClash(c) && ccyRate(c) == null; })){
+    refreshFxRates().then(function(){ saveCfg(); paint(); });
+  }
 
   if (cfg.auto && cfg.proxy){
     var stale = data.some(function(c){ return c.tkr && (!c.updated || Date.now() - c.updated > 6*3600*1000); });
