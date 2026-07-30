@@ -1,0 +1,109 @@
+/**
+ * REPORTING CURRENCY ADDON — paste into your existing Apps Script project
+ * (the same project behind your /exec proxy URL used for fn=quote / fn=fundamentals)
+ *
+ * WHY THIS EXISTS
+ * A handful of ASX companies report their financials in US dollars while their shares trade in
+ * Australian dollars — BHP, Rio, South32, Woodside, Santos, Fortescue and a dozen or so others.
+ * Xero reports in New Zealand dollars. Mixing a USD earnings figure with an AUD market cap gives
+ * an Acquirer's Multiple that means nothing, so the app converts one side before it calculates.
+ *
+ * To do that it has to know which currency a company reports in. It looks for a `currency`
+ * property on your fn=fundamentals response and uses it if it's there. Right now it isn't, so the
+ * app falls back to a small built-in list of well-known USD reporters — which goes stale, and
+ * misses anything not on it.
+ *
+ * Yahoo already tells you. Every figure in the fundamentals-timeseries response your script
+ * fetches carries a "currencyCode". This addon reads it out of the response you have already
+ * downloaded — no extra request, no extra quota, no new endpoint.
+ *
+ * HOW TO INSTALL
+ * 1. Open your project at script.google.com (the one you deployed as your proxy).
+ * 2. Paste everything below this comment block into a new script file, or at the bottom of an
+ *    existing one.
+ * 3. Find the code that builds the reply for fn=fundamentals. It's the part that returns an
+ *    object with `fields` in it, something like:
+ *
+ *        return { fields: fields, price: price, priceCurrency: cur, name: name };
+ *
+ *    Add one property to it:
+ *
+ *        return { fields: fields, price: price, priceCurrency: cur, name: name,
+ *                 currency: asxReportingCurrency_(raw) };
+ *
+ *    where `raw` is whatever variable already holds the Yahoo fundamentals response — either the
+ *    text you fetched or the object you parsed from it. Both work; the function accepts either.
+ *    Common names are `raw`, `txt`, `body`, `json`, `data` or `res` depending on how you wrote it.
+ *    If the response is only in scope earlier, hoist it into a variable you can reach here.
+ * 4. Run `testCurrencyParser` once from the editor (pick it from the function dropdown and press
+ *    Run) and check the log says USD. That proves the parser works before you redeploy.
+ * 5. Deploy → Manage deployments → Edit → New version → Deploy. No new URL is needed.
+ *
+ * HOW TO CHECK IT WORKED
+ * In the app, open BHP and tap "Fetch financials". The toast should end with "· reports in USD",
+ * and the "Reports in" dropdown under Identity should show USD. Once you're happy, "Fetch all
+ * financials" from the More tab sets the currency for your whole list in one pass.
+ *
+ * IF IT COMES BACK EMPTY
+ * Some companies genuinely have no currencyCode in Yahoo's response — usually the ones where the
+ * financials are thin to begin with. The app treats an empty currency as "leave it alone", so
+ * nothing breaks: whatever was there before is kept, and you can set it by hand in the dropdown.
+ */
+
+/**
+ * Pulls the reporting currency out of a Yahoo fundamentals-timeseries response.
+ *
+ * Takes the most common currencyCode in the payload rather than the first one. That matters:
+ * share counts and some per-share figures carry no code or an odd one, while the reporting
+ * currency is attached to nearly every line in the statements. Majority wins.
+ *
+ * Accepts the raw response text or an already-parsed object, so it doesn't care how your script
+ * happens to be written. Returns "" when there's nothing to find — never throws.
+ */
+function asxReportingCurrency_(src){
+  var s;
+  try{
+    s = (typeof src === "string") ? src : JSON.stringify(src || "");
+  }catch(e){
+    return "";
+  }
+  if (!s) return "";
+  var counts = {}, best = "", bestN = 0, m;
+  var re = /"currencyCode"\s*:\s*"([A-Za-z]{3})"/g;
+  while ((m = re.exec(s)) !== null){
+    var k = m[1].toUpperCase();
+    counts[k] = (counts[k] || 0) + 1;
+    if (counts[k] > bestN){ bestN = counts[k]; best = k; }
+  }
+  return best;
+}
+
+/**
+ * Run this from the editor to check the parser before you redeploy. No underscore on the name, so
+ * it shows up in the function dropdown.
+ */
+function testCurrencyParser(){
+  /* Shaped like the real thing: a majority of USD lines plus one stray AUD, which is exactly the
+     case that would trip up a parser that just took the first match. */
+  var sample = '{"timeseries":{"result":[' +
+    '{"meta":{"symbol":["BHP.AX"]},"annualTotalRevenue":[' +
+      '{"asOfDate":"2025-06-30","currencyCode":"USD","reportedValue":{"raw":55000000000}}]},' +
+    '{"annualEBIT":[{"asOfDate":"2025-06-30","currencyCode":"USD","reportedValue":{"raw":22000000000}}]},' +
+    '{"annualTotalDebt":[{"asOfDate":"2025-06-30","currencyCode":"USD","reportedValue":{"raw":15000000000}}]},' +
+    '{"annualSomethingOdd":[{"asOfDate":"2025-06-30","currencyCode":"AUD","reportedValue":{"raw":1}}]}' +
+    ']}}';
+
+  var fromText = asxReportingCurrency_(sample);
+  var fromObject = asxReportingCurrency_(JSON.parse(sample));
+
+  Logger.log("from raw text     : " + fromText + "   (expected USD)");
+  Logger.log("from parsed object: " + fromObject + "   (expected USD)");
+  Logger.log("no currency in it : '" + asxReportingCurrency_('{"a":1}') + "'   (expected empty)");
+  Logger.log("null input        : '" + asxReportingCurrency_(null) + "'   (expected empty)");
+
+  if (fromText === "USD" && fromObject === "USD"){
+    Logger.log("PASS — paste step 3 into your fn=fundamentals reply, then redeploy.");
+  } else {
+    Logger.log("FAIL — the parser didn't return USD. Don't redeploy; something got mangled in the paste.");
+  }
+}
