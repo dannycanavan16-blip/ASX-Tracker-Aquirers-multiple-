@@ -636,6 +636,7 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
   <div class="sheet-actions">
     <button id="btnRefresh">Refresh prices</button>
     <button id="btnFetchAll">Fetch all financials</button>
+    <button class="ghost" id="btnForceRefresh">Force refresh all</button>
     <button id="btnStarter">Load ASX names</button>
     <button id="btnCompare">Compare companies</button>
     <button id="btnSectorStats">Sector stats</button>
@@ -719,6 +720,7 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
 
     <h3>Fetch all financials</h3>
     <p>Works through the whole list one company at a time, roughly 1.3 seconds apart so Yahoo does not throttle you. It saves after every company, so stopping it or losing the page costs you nothing — start it again and it picks up where it left off. It skips banks and REITs, and skips anything already pulled in the last month. Come results season, run it again and it refreshes the lot. Smaller companies often come back empty — Yahoo's coverage thins out down the list. Those are the ones to paste by hand.</p>
+    <p><b>Force refresh all</b>, next to it, ignores the one-month gate entirely and re-fetches every company regardless of when it was last pulled. That's the one to reach for after changing something in your proxy script — the normal Fetch all financials would otherwise skip everything it already has, including the companies whose data was wrong.</p>
 
     <h3>Pasting from Yahoo</h3>
     <p>Open <code>au.finance.yahoo.com/quote/BHP.AX/financials/</code>, select the table, copy, and paste it into the box inside any company. Same for the balance sheet tab. The parser picks out what it recognises and leaves the rest alone. Yahoo prints everything in thousands — that is handled. What is not handled is which impairments were genuinely one-off, so still read the annual report before you trust a number.</p>
@@ -727,6 +729,7 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
     <p>A handful of Australian companies — BHP, Rio, South32, Ansell, Woodside among them — report in USD while trading in AUD. Mixing a USD earnings figure with an AUD market cap produces a multiple that means nothing, so the app converts instead: every reported line item — debt, cash, earnings, revenue — is multiplied into the currency the share price is quoted in before anything is calculated. The share count needs no conversion, and neither does the price.</p>
     <p>The rate comes down with your prices, through the same proxy call — Yahoo treats a currency pair as an ordinary ticker, so nothing needed adding to your script. <b>Until there's a rate, those companies are left out of the ranking entirely</b> rather than ranked on a number built from two currencies. Open one and you can type the rate by hand instead; it's stored per currency pair, so setting it once for USD fixes every USD reporter at once.</p>
     <p>For any of this to happen the app has to know which currency a company reports in. The reliable answer comes from <b>Fetch financials</b>: Yahoo attaches the reporting currency to every figure it sends, so pulling a company's financials sets it correctly and keeps it correct as companies change. This needs one small addition to your proxy — see <code>apps-script-currency-addon.gs.txt</code> in the project files. With it installed, <b>Fetch all financials</b> sets the currency for your entire list in one pass, and the toast tells you what it found.</p>
+    <p>A company already fetched keeps whatever currency it was given until it's fetched again — so after installing or fixing the currency addon, plain <b>Fetch all financials</b> won't touch anything it already has, wrong currency included. Use <b>Force refresh all</b> instead to redo everything already pulled.</p>
     <p>Until then there's a built-in fallback, applied only where nothing is recorded yet: <code>BHP RIO S32 WDS STO FMG ANN JHX AMC CPU QBE RMD BXB CSL CRN SQ2 NEM KAR PRU SFR PDN</code> as USD, and <code>XRO</code> as NZD. A starting point rather than gospel — worth checking the ones you actually hold, because a company wrongly marked USD has its multiple wrong by about half.</p>
     <p>Either way you can set it yourself: every company has a <b>Reports in</b> dropdown under Identity. Blank means "not known", which is treated as matching the share price. A fetched currency always wins over the built-in list, and over anything you typed.</p>
 
@@ -1715,15 +1718,15 @@ function setProgress(done, total, label){
 }
 function sleep(ms){ return new Promise(function(r){ setTimeout(r, ms); }); }
 
-async function fetchAllFinancials(){
+async function fetchAllFinancials(force){
   if (fetching) return;
   if (!cfg.proxy){ toast("Add your Apps Script URL first"); openSheet(); return; }
   var MONTH = 30 * 24 * 3600 * 1000;
   var queue = data.filter(function(c){
     if (!c.tkr || BLOCKED[c.sector]) return false;
-    return !c.finUpdated || (Date.now() - c.finUpdated) > MONTH;
+    return force || !c.finUpdated || (Date.now() - c.finUpdated) > MONTH;
   });
-  if (!queue.length){ toast("Everything already has financials"); return; }
+  if (!queue.length){ toast(force ? "No companies to refresh" : "Everything already has financials"); return; }
 
   fetching = true; stopFetch = false;
   var btn = document.getElementById("btnFetchAll");
@@ -3602,6 +3605,12 @@ document.getElementById("btnAdd").addEventListener("click", function(){
 });
 document.getElementById("btnRefresh").addEventListener("click", function(){ refreshPrices(false); });
 document.getElementById("btnFetchAll").addEventListener("click", function(){ fetchAllFinancials(); });
+document.getElementById("btnForceRefresh").addEventListener("click", function(){
+  if (!data.length) return;
+  if (!confirm("Re-fetch financials for every company, ignoring how recently each was last updated? " +
+    "Useful after fixing your proxy script. This can take a few minutes for a large list.")) return;
+  fetchAllFinancials(true);
+});
 document.getElementById("btnBackup").addEventListener("click", backupToCloud);
 document.getElementById("btnRestore").addEventListener("click", restoreFromCloud);
 document.getElementById("btnStopFetch").addEventListener("click", function(){
