@@ -701,6 +701,9 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
     <h3>Real company logos</h3>
     <p>Avatars in the List and Favourites views can show a real company logo instead of a coloured initial. This is resolved by your proxy script, not the browser — see <code>apps-script-logo-addon.gs.txt</code> in the project files for the snippet to paste into your existing script and redeploy. Once installed, logos fill in automatically the next time you fetch prices or financials for a company. The <b>Website</b> field inside a company is a fallback the browser can use on its own for anything the proxy doesn't recognise.</p>
 
+    <h3>Price chart</h3>
+    <p>Open a company's editor (More, inside it) and there are two charts. <b>History</b> is the Acquirer's Multiple, built up locally one point a day, so it starts empty and takes a few weeks of visits to look like anything. <b>Price chart</b>, underneath it, is different — a year of actual daily closes pulled straight from Yahoo, so it's there the moment you load it. Tap <b>Load chart</b> to fetch it; nothing is pulled automatically, so opening a company you've never charted costs nothing until you ask for it. This needs one small addition to your proxy — see <code>apps-script-pricechart-addon.gs.txt</code> in the project files. If you tap Load chart before installing it, you'll get a message saying so rather than a blank chart.</p>
+
     <h3>Cloud backup</h3>
     <p>Back up now sends your full company list — tickers, financials, notes, portfolio lots, price history — plus your view settings to a private Google Sheet that your own script creates in your own Drive, not a third party. This needs the same proxy script as everything else, with one addition: see <code>apps-script-sync-addon.gs.txt</code> in the project files for the snippet to paste into your existing script and redeploy. No spreadsheet setup needed — the first backup creates it for you. It's manual both ways: nothing uploads or restores unless you tap the button, and restoring replaces everything currently on this device.</p>
 
@@ -1314,6 +1317,42 @@ function historyFieldsetHTML(c){
     '<div class="spark-range tnum"><span>Cheapest ' + fmtX(min) + '</span><span>Richest ' + fmtX(max) + '</span></div>' +
   '</div>';
 }
+
+/* Separate from sparklineSVG — that one reads p.m and colours by trend, which means nothing for a
+   raw price series, so this stays its own function rather than a shared one branching on field name. */
+function priceChartSVG(hist, w, h){
+  if (!hist || hist.length < 2) return "";
+  var vals = hist.map(function(p){ return p.p; });
+  var min = Math.min.apply(null, vals), max = Math.max.apply(null, vals);
+  var range = (max - min) || 1;
+  var pts = hist.map(function(p, i){
+    var x = (i / (hist.length - 1)) * w;
+    var y = h - ((p.p - min) / range) * h;
+    return x.toFixed(1) + "," + y.toFixed(1);
+  }).join(" ");
+  return '<svg class="spark" viewBox="0 0 ' + w + ' ' + h + '" preserveAspectRatio="none">' +
+    '<polyline points="' + pts + '" fill="none" stroke="var(--blue)"' +
+    ' stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"/></svg>';
+}
+function priceChartFieldsetHTML(c){
+  var hist = c.priceHist || [];
+  if (hist.length < 2){
+    return '<div class="fieldset"><div class="fs-title"><span>Price chart</span></div>' +
+      '<p class="hint">A year of daily closes from Yahoo — not built up locally like History above, ' +
+      'so it\'s there as soon as you load it.</p>' +
+      '<div class="ed-actions"><button class="mini" data-act="loadchart" data-id="' + c.id + '">Load chart</button></div>' +
+    '</div>';
+  }
+  var vals = hist.map(function(p){ return p.p; });
+  var min = Math.min.apply(null, vals), max = Math.max.apply(null, vals);
+  return '<div class="fieldset"><div class="fs-title"><span>Price chart</span>' +
+    '<span style="font-family:var(--mono);font-weight:400;letter-spacing:0;text-transform:none">' +
+    hist.length + ' points since ' + hist[0].d + '</span></div>' +
+    '<div class="spark-wrap">' + priceChartSVG(hist, 280, 64) + '</div>' +
+    '<div class="spark-range tnum"><span>Low $' + min.toFixed(2) + '</span><span>High $' + max.toFixed(2) + '</span></div>' +
+    '<div class="ed-actions"><button class="mini" data-act="loadchart" data-id="' + c.id + '">Refresh chart</button></div>' +
+  '</div>';
+}
 function ago(ts){
   if (!ts) return "";
   var s = (Date.now() - ts) / 1000;
@@ -1703,6 +1742,25 @@ async function fetchFundamentals(c){
     toast(n ? n + " fields filled" + gotCcy : "Yahoo had nothing — paste it instead");
   }catch(err){
     toast("Fetch failed — try pasting");
+  }
+}
+
+/* On-demand only, never part of refreshPrices/fetchAllFinancials — a chart nobody opens is a chart
+   nobody needed pulling. An unrecognised fn (the addon not installed yet) falls through this proxy's
+   own default case rather than erroring, so an empty result here means "not installed", not "broken". */
+async function fetchPriceHistory(c){
+  if (!cfg.proxy){ toast("Add your Apps Script URL first"); openSheet(); return; }
+  toast("Loading chart for " + (c.tkr || "…"));
+  try{
+    var res = await proxyGet({ fn:"pricehistory", ticker: yTicker(c), range:"1y" });
+    var pts = (res && res.points) || [];
+    if (!pts.length){ toast("No chart data — install the price chart addon (see Method & setup)"); return; }
+    c.priceHist = pts;
+    c.priceHistUpdated = Date.now();
+    save(); paint();
+    toast(pts.length + " points loaded");
+  }catch(err){
+    toast("Chart failed to load");
   }
 }
 
@@ -3188,6 +3246,8 @@ function editorHTML(c){
 
   historyFieldsetHTML(c) +
 
+  priceChartFieldsetHTML(c) +
+
   portfolioFieldsetHTML(c) +
 
   researchHTML(c) +
@@ -3480,6 +3540,7 @@ function ledgerClick(e){
         if (pasteOpen){ var ta = document.getElementById("pt_" + pasteOpen); if (ta) ta.focus(); }
         return;
       case "fetch":  if (c) fetchFundamentals(c); return;
+      case "loadchart": if (c) fetchPriceHistory(c); return;
       case "parse":
         if (!c) return;
         var box = document.getElementById("pt_" + c.id);

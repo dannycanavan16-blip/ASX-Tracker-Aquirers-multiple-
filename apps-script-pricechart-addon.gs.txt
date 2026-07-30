@@ -1,0 +1,124 @@
+/**
+ * PRICE CHART ADDON — for the Apps Script project behind your /exec proxy URL
+ *
+ * WHY THIS EXISTS
+ * The app already has a chart inside each company's editor called "History", but it charts the
+ * Acquirer's Multiple, not the share price — and it's built up one point a day from inside the app,
+ * so it starts empty and takes weeks of visits before it looks like anything.
+ *
+ * Yahoo already has months of real daily closes sitting there. The endpoint your proxy's `quotes_`
+ * function already calls for today's price — `v8/finance/chart/{ticker}` — answers a much longer
+ * range too, with no extra login needed. Your own script even says as much in a comment: "the chart
+ * endpoint needs no crumb, so this is the reliable half." This addon asks that same endpoint for a
+ * year of history instead of one day, and does nothing else — it can't touch prices or financials
+ * that already work, because it's a brand new function on a brand new dispatcher case.
+ *
+ * ── INSTALL ─────────────────────────────────────────────────────────────────────────────────────
+ *
+ * STEP 1 — Put this function in the project.
+ * Open your project at script.google.com. Add a new script file (the + beside "Files" → Script) and
+ * name it PriceChart. Paste everything below the end of this comment block into it. Save.
+ *
+ * STEP 2 — Add one case to the dispatcher in Code.gs.
+ * Find `function doGet(e)` and its `switch (p.fn) { ... }`. Add a new case anywhere above `default:`,
+ * for example right after the last one you already have:
+ *
+ *     case 'pricehistory':
+ *       out = priceHistory_(p.ticker, p.range);
+ *       break;
+ *
+ * That's the entire edit — nothing about `fundamentals_` or `quotes_` changes, so there's no way this
+ * can affect the currency fix or your prices. Save.
+ *
+ * STEP 3 — Prove it works BEFORE you deploy.
+ * Pick `testPriceHistoryLive` from the function dropdown at the top of the editor and press Run. Read
+ * the execution log. You want something like:
+ *
+ *     BHP.AX  212 points   2025-01-15 -> 2026-01-14
+ *
+ * A few hundred points spanning roughly a year. If it says 0 points or logs an error, don't deploy —
+ * the most likely cause is the case from step 2 not being in place, or a typo in the case label
+ * ('pricehistory' must match exactly what the app sends).
+ *
+ * STEP 4 — Deploy.
+ * Deploy → Manage deployments → the pencil icon → Version: New version → Deploy. Your /exec URL does
+ * not change, so there's nothing to update in the app.
+ *
+ * ── CHECK IT IN THE APP ─────────────────────────────────────────────────────────────────────────
+ * Open any company → More → scroll to "Price chart", underneath "History" → tap Load chart. A chart
+ * of the last year's closes should appear, with a low/high shown underneath. Tap Refresh chart any
+ * time to pull it again — nothing about this fetches automatically, so it costs you nothing for
+ * companies you never open a chart for.
+ *
+ * IF IT SAYS "No chart data"
+ * That's the app's own message for an empty or missing response — it means either this addon isn't
+ * installed yet, or Yahoo has no chart for that particular ticker (rare, but some very thin ASX
+ * listings have no chart history at all). It never throws or breaks the rest of the company's data
+ * either way.
+ */
+
+/**
+ * Fetches a year (by default) of daily closes for one ticker from the same chart endpoint the proxy
+ * already uses for today's price — just with a longer range and no `interval=1d&range=1d` shortcut.
+ * No crumb or cookie needed. Returns { ticker, points: [{d, p}, ...] }, oldest first, skipping any
+ * day Yahoo has no close for (holidays, trading halts, gaps in a thin listing).
+ */
+function priceHistory_(ticker, range){
+  if (!ticker) return { error: 'No ticker supplied' };
+  ticker = String(ticker).trim();
+  range = String(range || '1y').trim();
+
+  var url = 'https://query1.finance.yahoo.com/v8/finance/chart/' + encodeURIComponent(ticker) +
+    '?interval=1d&range=' + encodeURIComponent(range);
+
+  var raw;
+  try{
+    raw = UrlFetchApp.fetch(url, {
+      muteHttpExceptions: true,
+      headers: { 'User-Agent': UA }
+    }).getContentText();
+  }catch(err){
+    return { error: String(err && err.message ? err.message : err) };
+  }
+
+  var body;
+  try{ body = JSON.parse(raw); }
+  catch(e){ return { error: 'Yahoo returned something unreadable' }; }
+
+  var res = body.chart && body.chart.result && body.chart.result[0];
+  if (!res) return { error: 'No chart data for ' + ticker };
+
+  var ts = res.timestamp || [];
+  var closes = (res.indicators && res.indicators.quote && res.indicators.quote[0] &&
+                res.indicators.quote[0].close) || [];
+
+  var points = [];
+  for (var i = 0; i < ts.length; i++){
+    if (closes[i] == null) continue;
+    points.push({
+      d: Utilities.formatDate(new Date(ts[i] * 1000), 'UTC', 'yyyy-MM-dd'),
+      p: Math.round(closes[i] * 100) / 100
+    });
+  }
+
+  return { ticker: ticker, points: points };
+}
+
+/**
+ * Step 3's test. Calls the real priceHistory_ against a real, always-listed company and logs what
+ * your proxy would now send to the app — so a wrong answer is visible before you touch Deploy.
+ * No trailing underscore on the name, so it appears in the editor's function dropdown.
+ */
+function testPriceHistoryLive(){
+  var out = priceHistory_('BHP.AX');
+  if (out.error){
+    Logger.log('BHP.AX  ERROR: ' + out.error);
+    Logger.log('Do not deploy yet — check step 2 is in place and try again.');
+    return;
+  }
+  var pts = out.points || [];
+  Logger.log('BHP.AX  ' + pts.length + ' points   ' +
+    (pts.length ? pts[0].d + ' -> ' + pts[pts.length - 1].d : '(none)'));
+  Logger.log(pts.length > 50 ? 'Looks right — go ahead and deploy.' :
+    'Fewer points than expected for a year of trading days — worth a second look before deploying.');
+}
