@@ -726,8 +726,9 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
     <h3>The currency trap</h3>
     <p>A handful of Australian companies — BHP, Rio, South32, Ansell, Woodside among them — report in USD while trading in AUD. Mixing a USD earnings figure with an AUD market cap produces a multiple that means nothing, so the app converts instead: every reported line item — debt, cash, earnings, revenue — is multiplied into the currency the share price is quoted in before anything is calculated. The share count needs no conversion, and neither does the price.</p>
     <p>The rate comes down with your prices, through the same proxy call — Yahoo treats a currency pair as an ordinary ticker, so nothing needed adding to your script. <b>Until there's a rate, those companies are left out of the ranking entirely</b> rather than ranked on a number built from two currencies. Open one and you can type the rate by hand instead; it's stored per currency pair, so setting it once for USD fixes every USD reporter at once.</p>
-    <p>For any of this to happen the app has to know which currency a company reports in, and that isn't something it can work out on its own — it comes from your proxy, from a Yahoo paste, or from you. Every company now has a <b>Reports in</b> dropdown under Identity. Blank means "not known", which is treated as matching the share price.</p>
-    <p>These tickers are set to USD automatically the first time you open the app, but only where nothing was recorded already: <code>BHP RIO S32 WDS STO ANN JHX AMC CPU QBE RMD BXB CSL CRN SQ2</code>. Treat that as a starting point rather than gospel — check the ones you actually hold, because a company wrongly marked USD has its multiple wrong by about half. Changing the dropdown back to AUD fixes it immediately.</p>
+    <p>For any of this to happen the app has to know which currency a company reports in. The reliable answer comes from <b>Fetch financials</b>: Yahoo attaches the reporting currency to every figure it sends, so pulling a company's financials sets it correctly and keeps it correct as companies change. This needs one small addition to your proxy — see <code>apps-script-currency-addon.gs.txt</code> in the project files. With it installed, <b>Fetch all financials</b> sets the currency for your entire list in one pass, and the toast tells you what it found.</p>
+    <p>Until then there's a built-in fallback, applied only where nothing is recorded yet: <code>BHP RIO S32 WDS STO FMG ANN JHX AMC CPU QBE RMD BXB CSL CRN SQ2 NEM KAR PRU SFR PDN</code> as USD, and <code>XRO</code> as NZD. A starting point rather than gospel — worth checking the ones you actually hold, because a company wrongly marked USD has its multiple wrong by about half.</p>
+    <p>Either way you can set it yourself: every company has a <b>Reports in</b> dropdown under Identity. Blank means "not known", which is treated as matching the share price. A fetched currency always wins over the built-in list, and over anything you typed.</p>
 
     <h3>The three line items</h3>
     <ul>
@@ -991,22 +992,24 @@ function ccyClash(c){
 }
 function ccyRate(c){ return fxRate(c.ccy, priceCcyOf(c)); }
 
-/* Which ASX companies report in something other than AUD is a fact the app can only learn from
-   the proxy's fundamentals response or a Yahoo paste, and neither is guaranteed. This list seeds
-   the ones that are widely known, and only where nothing is recorded yet — it is a starting
-   point, not gospel. Every one of them shows in the company's "Reports in" dropdown and is
-   changed back in a tap, which matters: a company wrongly marked USD has its multiple wrong by
-   about half. */
-var USD_REPORTERS = ["BHP","RIO","S32","WDS","STO","ANN","JHX","AMC","CPU","QBE","RMD","BXB","CSL","CRN","SQ2"];
+/* A fallback, not the mechanism. Fetch financials reads the reporting currency straight off the
+   fundamentals response and overwrites whatever is here, so this only matters for companies you
+   haven't pulled yet — and it only ever fills a blank. Treat it as a starting point: a company
+   wrongly marked USD has its multiple wrong by about half, which is why every one of these shows
+   in the "Reports in" dropdown and is undone in a tap. */
+var REPORT_CCY = {
+  BHP:"USD", RIO:"USD", S32:"USD", WDS:"USD", STO:"USD", FMG:"USD", ANN:"USD", JHX:"USD",
+  AMC:"USD", CPU:"USD", QBE:"USD", RMD:"USD", BXB:"USD", CSL:"USD", CRN:"USD", SQ2:"USD",
+  NEM:"USD", KAR:"USD", PRU:"USD", SFR:"USD", PDN:"USD",
+  XRO:"NZD"
+};
 var CURRENCIES = ["","AUD","USD","NZD","GBP","EUR"];
 function seedReportCurrencies(){
-  var known = {};
-  USD_REPORTERS.forEach(function(t){ known[t] = "USD"; });
   var n = 0;
   data.forEach(function(c){
     if (c.ccy) return;
     var t = String(c.tkr || "").trim().toUpperCase();
-    if (known[t]){ c.ccy = known[t]; n++; }
+    if (REPORT_CCY[t]){ c.ccy = REPORT_CCY[t]; n++; }
   });
   return n;
 }
@@ -1669,8 +1672,10 @@ async function pullOne(c){
   FIN_KEYS.forEach(function(k){
     if (f[k] != null && isFinite(f[k])){ c[k] = String(Math.round(f[k]*100)/100); n++; }
   });
-  if (res.currency) c.ccy = res.currency;
-  if (res.priceCurrency) c.priceCcy = res.priceCurrency;
+  /* Uppercased on the way in: ccyClash compares currency codes, and a lower-case "usd" from any
+     source would read as a different currency to "USD" and quietly skip the conversion. */
+  if (res.currency) c.ccy = String(res.currency).trim().toUpperCase();
+  if (res.priceCurrency) c.priceCcy = String(res.priceCurrency).trim().toUpperCase();
   if (res.price != null){ c.price = String(res.price); c.updated = Date.now(); }
   if (!c.co && res.name) c.co = res.name;
   if (f.mcapDirect != null) c.mcapDirect = "";
@@ -1684,9 +1689,15 @@ async function fetchFundamentals(c){
   if (!cfg.proxy){ toast("Add your Apps Script URL first"); openSheet(); return; }
   toast("Fetching " + (c.tkr || "…"));
   try{
+    /* Naming the currency it found is the only visible sign that the reporting-currency part of
+       the proxy is working — without it, a script that sends the field and one that doesn't look
+       exactly the same from here. Compared before and after so pullOne's return shape, which
+       fetchAllFinancials also depends on, stays a plain count. */
+    var wasCcy = c.ccy;
     var n = await pullOne(c);
     save(); paint();
-    toast(n ? n + " fields filled" : "Yahoo had nothing — paste it instead");
+    var gotCcy = c.ccy && c.ccy !== wasCcy ? " · reports in " + c.ccy : "";
+    toast(n ? n + " fields filled" + gotCcy : "Yahoo had nothing — paste it instead");
   }catch(err){
     toast("Fetch failed — try pasting");
   }
