@@ -845,6 +845,10 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
     <span class="lab">Sectors</span>
     <div class="fchips" id="basketSectors"></div>
   </div>
+  <div class="fgroup">
+    <span class="lab">Minimum size</span>
+    <div class="fchips" id="basketMcap"></div>
+  </div>
 
   <div id="basketBody"></div>
 </div>
@@ -2313,6 +2317,14 @@ function sectorChipsHTML(){
   }).join("");
   return all + chips;
 }
+/* Same cfg.filters.size the header's advanced-filters sheet writes to — single-select, unlike the
+   sector toggle, so a tap here replaces the value rather than adding/removing from a list. */
+function mcapChipsHTML(){
+  return FILTER_BANDS.size.map(function(b){
+    return '<button class="fchip' + (cfg.filters.size === b.k ? ' on' : '') +
+      '" data-mcap="' + b.k + '">' + esc(b.label) + '</button>';
+  }).join("");
+}
 function planWho(c, meta){
   return avatarHTML(c) +
     '<div class="who name-block">' +
@@ -2386,6 +2398,7 @@ function buildPaceNote(b){
 function renderBasket(){
   document.getElementById("basketSizes").innerHTML = basketSizesHTML();
   document.getElementById("basketSectors").innerHTML = sectorChipsHTML();
+  document.getElementById("basketMcap").innerHTML = mcapChipsHTML();
   var body = document.getElementById("basketBody");
   var b = planData();
 
@@ -2509,6 +2522,11 @@ document.getElementById("basketSectors").addEventListener("click", function(e){
   }
   saveCfg(); renderBasket(); paint();
   document.getElementById("sfLabel").textContent = computeFilterLabel(cfg);
+});
+document.getElementById("basketMcap").addEventListener("click", function(e){
+  var b = e.target.closest("[data-mcap]"); if (!b) return;
+  cfg.filters.size = b.dataset.mcap;
+  saveCfg(); renderAdvCount(); renderBasket(); paint();
 });
 document.getElementById("basketCapital").addEventListener("input", function(){
   cfg.basket.capital = this.value;
