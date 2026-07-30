@@ -841,6 +841,10 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
       <input id="basketCapital" inputmode="decimal" placeholder="e.g. 1000">
     </div>
   </div>
+  <div class="fgroup">
+    <span class="lab">Sectors</span>
+    <div class="fchips" id="basketSectors"></div>
+  </div>
 
   <div id="basketBody"></div>
 </div>
@@ -2296,6 +2300,19 @@ function basketSizesHTML(){
       '" data-bsize="' + n + '">' + n + ' names</button>';
   }).join("");
 }
+/* Same cfg.hidden the header's sector dropdown writes to — this is just a second, reachable place to
+   flip it, since that dropdown sits behind the Monthly Plan sheet's own backdrop while it's open. */
+function sectorChipsHTML(){
+  var present = presentSectors(cfg);
+  if (!present.length) return "";
+  var all = '<button class="fchip' + (!cfg.hidden.length ? ' on' : '') + '" data-allsec="1">All</button>';
+  var chips = present.map(function(s){
+    var on = cfg.hidden.indexOf(s) < 0;
+    return '<button class="fchip' + (on ? ' on' : '') + '" data-sec="' + esc(s) + '">' +
+      esc(SHORTSEC[s] || s) + '</button>';
+  }).join("");
+  return all + chips;
+}
 function planWho(c, meta){
   return avatarHTML(c) +
     '<div class="who name-block">' +
@@ -2368,6 +2385,7 @@ function buildPaceNote(b){
 }
 function renderBasket(){
   document.getElementById("basketSizes").innerHTML = basketSizesHTML();
+  document.getElementById("basketSectors").innerHTML = sectorChipsHTML();
   var body = document.getElementById("basketBody");
   var b = planData();
 
@@ -2481,6 +2499,16 @@ document.getElementById("basketSizes").addEventListener("click", function(e){
   var b = e.target.closest("[data-bsize]"); if (!b) return;
   cfg.basket.size = Number(b.dataset.bsize);
   saveCfg(); renderBasket();
+});
+document.getElementById("basketSectors").addEventListener("click", function(e){
+  var b = e.target.closest("[data-sec],[data-allsec]"); if (!b) return;
+  if (b.dataset.allsec) cfg.hidden = [];
+  else {
+    var s = b.dataset.sec, i = cfg.hidden.indexOf(s);
+    if (i >= 0) cfg.hidden.splice(i, 1); else cfg.hidden.push(s);
+  }
+  saveCfg(); renderBasket(); paint();
+  document.getElementById("sfLabel").textContent = computeFilterLabel(cfg);
 });
 document.getElementById("basketCapital").addEventListener("input", function(){
   cfg.basket.capital = this.value;
