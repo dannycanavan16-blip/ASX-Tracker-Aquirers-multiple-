@@ -642,38 +642,7 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
     <div id="basketBody"></div>
   </section>
 
-</div>
-
-<button class="fab" id="btnAdd" aria-label="Add company">+</button>
-
-<nav class="navbar" id="navbar">
-  <button class="navitem" data-nav="map" aria-label="Map">
-    <svg viewBox="0 0 24 24"><circle cx="6" cy="16" r="2.4"></circle><circle cx="12" cy="9" r="2.4"></circle><circle cx="18" cy="13" r="2.4"></circle></svg>
-    Map</button>
-  <button class="navitem" data-nav="list" aria-label="List">
-    <svg viewBox="0 0 24 24"><line x1="4" y1="6" x2="20" y2="6"></line><line x1="4" y1="12" x2="20" y2="12"></line><line x1="4" y1="18" x2="14" y2="18"></line></svg>
-    List</button>
-  <button class="navitem" data-nav="favs" aria-label="Favourites">
-    <svg viewBox="0 0 24 24"><path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.2 1 5.9-5.2-2.8-5.2 2.8 1-5.9-4.3-4.2 5.9-.8z"></path></svg>
-    Favourites</button>
-  <button class="navitem" data-nav="portfolio" aria-label="Portfolio">
-    <svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"></rect><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
-    Portfolio</button>
-  <button class="navitem" data-nav="plan" aria-label="Monthly plan">
-    <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"></rect>
-    <line x1="3" y1="10" x2="21" y2="10"></line><line x1="8" y1="3" x2="8" y2="7"></line>
-    <line x1="16" y1="3" x2="16" y2="7"></line><path d="M8 15l2.5 2.5L16 12"></path></svg>
-    Plan</button>
-  <button class="navitem" data-nav="more" aria-label="More">
-    <svg viewBox="0 0 24 24"><circle cx="6" cy="12" r="1.4" fill="currentColor" stroke="none"></circle><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"></circle><circle cx="18" cy="12" r="1.4" fill="currentColor" stroke="none"></circle></svg>
-    More</button>
-</nav>
-
-<div class="sheet-backdrop" id="sheetBackdrop"></div>
-<div class="sheet" id="moreSheet">
-  <div class="sheet-handle"></div>
-  <div class="sheet-head"><h2>More</h2>
-    <button class="sheet-x" id="btnMoreClose" aria-label="Close">✕</button></div>
+  <section id="moreSheet" style="display:none">
   <div class="sheet-actions">
     <button id="btnRefresh">Refresh prices</button>
     <button id="btnFetchAll">Fetch all financials</button>
@@ -812,7 +781,34 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
     <p>Cheap multiples cluster around businesses in trouble. This ranking tells you where to start reading, and that is all it is for. Carlisle's own approach was a basket of thirty-odd rebalanced annually, not a bet on the cheapest name.</p>
     <p style="margin-top:1rem;font-style:italic">Nothing here is financial advice — it is arithmetic, and the arithmetic is only as good as the figures you feed it. Verify against the actual filing before you act.</p>
   </details>
+</section>
+
 </div>
+
+<button class="fab" id="btnAdd" aria-label="Add company">+</button>
+
+<nav class="navbar" id="navbar">
+  <button class="navitem" data-nav="map" aria-label="Map">
+    <svg viewBox="0 0 24 24"><circle cx="6" cy="16" r="2.4"></circle><circle cx="12" cy="9" r="2.4"></circle><circle cx="18" cy="13" r="2.4"></circle></svg>
+    Map</button>
+  <button class="navitem" data-nav="list" aria-label="List">
+    <svg viewBox="0 0 24 24"><line x1="4" y1="6" x2="20" y2="6"></line><line x1="4" y1="12" x2="20" y2="12"></line><line x1="4" y1="18" x2="14" y2="18"></line></svg>
+    List</button>
+  <button class="navitem" data-nav="favs" aria-label="Favourites">
+    <svg viewBox="0 0 24 24"><path d="M12 3.5l2.6 5.4 5.9.8-4.3 4.2 1 5.9-5.2-2.8-5.2 2.8 1-5.9-4.3-4.2 5.9-.8z"></path></svg>
+    Favourites</button>
+  <button class="navitem" data-nav="portfolio" aria-label="Portfolio">
+    <svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"></rect><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
+    Portfolio</button>
+  <button class="navitem" data-nav="plan" aria-label="Monthly plan">
+    <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"></rect>
+    <line x1="3" y1="10" x2="21" y2="10"></line><line x1="8" y1="3" x2="8" y2="7"></line>
+    <line x1="16" y1="3" x2="16" y2="7"></line><path d="M8 15l2.5 2.5L16 12"></path></svg>
+    Plan</button>
+  <button class="navitem" data-nav="more" aria-label="More">
+    <svg viewBox="0 0 24 24"><circle cx="6" cy="12" r="1.4" fill="currentColor" stroke="none"></circle><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"></circle><circle cx="18" cy="12" r="1.4" fill="currentColor" stroke="none"></circle></svg>
+    More</button>
+</nav>
 
 <div class="sheet-backdrop" id="compareBackdrop"></div>
 <div class="sheet" id="compareSheet">
@@ -2069,13 +2065,13 @@ document.addEventListener("click", function(e){
 });
 
 function setTab(t){
-  closeSheet();
   cfg.tab = t; saveCfg();
   document.getElementById("viewMap").style.display = t === "map" ? "" : "none";
   document.getElementById("viewList").style.display = t === "list" ? "" : "none";
   document.getElementById("viewFavs").style.display = t === "favs" ? "" : "none";
   document.getElementById("viewPortfolio").style.display = t === "portfolio" ? "" : "none";
   document.getElementById("viewPlan").style.display = t === "plan" ? "" : "none";
+  document.getElementById("moreSheet").style.display = t === "more" ? "" : "none";
   /* Search and sort only mean anything on the List, and the row now lives in the pinned
      header rather than inside the List section, so it has to be hidden per tab. */
   document.getElementById("searchRow").style.display = t === "list" ? "" : "none";
@@ -2090,11 +2086,6 @@ function setTab(t){
 }
 document.querySelectorAll("#navbar .navitem[data-nav]").forEach(function(btn){
   btn.addEventListener("click", function(){
-    if (btn.dataset.nav === "more"){
-      var isOpen = document.getElementById("moreSheet").classList.contains("open");
-      if (isOpen) closeSheet(); else openSheet();
-      return;
-    }
     setTab(btn.dataset.nav);
   });
 });
@@ -2114,17 +2105,10 @@ document.getElementById("btnTheme").addEventListener("click", function(){
 });
 applyTheme(readLS("asx_am_theme"));
 
-/* ---------- more sheet ---------- */
-function openSheet(){
-  document.getElementById("moreSheet").classList.add("open");
-  document.getElementById("sheetBackdrop").classList.add("open");
-}
-function closeSheet(){
-  document.getElementById("moreSheet").classList.remove("open");
-  document.getElementById("sheetBackdrop").classList.remove("open");
-}
-document.getElementById("sheetBackdrop").addEventListener("click", closeSheet);
-document.getElementById("btnMoreClose").addEventListener("click", closeSheet);
+/* ---------- more tab ---------- */
+/* Kept as a function (not inlined at each call site) because it's reused everywhere the app tells
+   the user to go configure their proxy URL — "Add your Apps Script URL first" then send them here. */
+function openSheet(){ setTab("more"); }
 
 /* ---------- compare ---------- */
 var COMPARE_MAX = 3;
@@ -2156,7 +2140,6 @@ function closeCompare(){
   document.getElementById("compareBackdrop").classList.remove("open");
 }
 document.getElementById("btnCompare").addEventListener("click", function(){
-  closeSheet();
   openCompare();
 });
 document.getElementById("compareBackdrop").addEventListener("click", closeCompare);
@@ -2286,7 +2269,6 @@ function closeStats(){
   document.getElementById("statsBackdrop").classList.remove("open");
 }
 document.getElementById("btnSectorStats").addEventListener("click", function(){
-  closeSheet();
   openStats();
 });
 document.getElementById("statsBackdrop").addEventListener("click", closeStats);
@@ -2626,7 +2608,7 @@ document.getElementById("btnDigestDismiss").addEventListener("click", markDigest
 document.getElementById("btnDigestClose").addEventListener("click", closeDigest);
 document.getElementById("digestBackdrop").addEventListener("click", closeDigest);
 document.getElementById("btnWhatsChanged").addEventListener("click", function(){
-  closeSheet(); openDigest();
+  openDigest();
 });
 
 /* ---------- advanced filters ---------- */
@@ -3447,6 +3429,7 @@ function paint(){
   else if (cfg.tab === "favs") renderFavsView(scored);
   else if (cfg.tab === "portfolio") renderPortfolio();
   else if (cfg.tab === "plan") renderBasket();
+  else if (cfg.tab === "more"){ /* static settings/actions content, nothing to render per visit */ }
   else { renderList(scored); renderDigestStrip(); }
   renderFetchAllCount();
   if (detailId) renderDetail();
