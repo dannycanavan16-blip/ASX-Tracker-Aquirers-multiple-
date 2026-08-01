@@ -606,6 +606,42 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
     <div class="ledger" id="portfolioLedger"></div>
   </section>
 
+  <section id="viewPlan" style="display:none">
+    <p class="hint" style="margin:0 0 .9rem">What to buy this month and what has stopped being cheap. <b>Buy</b> records the purchase in your portfolio and takes it out of the month's money — it doesn't place an order with your broker.</p>
+
+    <details class="planrules">
+      <summary>The strategy</summary>
+      <ul>
+        <li>Own the <b>cheapest names by Acquirer's multiple</b>, equal weight.</li>
+        <li><b>Top up monthly.</b> A first purchase in any stock has to clear the ASX $500 minimum, so early on the money opens two positions rather than dusting all of them.</li>
+        <li><b>Review quarterly.</b> The only reason to sell is a company dropping out of the target — never how long you've held it, never how far it has run.</li>
+        <li><b>Sell whole positions</b>, never part of one.</li>
+        <li>If something drops out while <b>in profit</b>, holding to a <b>year and a day</b> halves the taxable gain, so wait where that is still ahead. At a loss there is nothing to wait for.</li>
+      </ul>
+    </details>
+
+    <div class="fgroup">
+      <span class="lab">How many companies to own</span>
+      <div class="fchips" id="basketSizes"></div>
+    </div>
+    <div class="fgroup">
+      <span class="lab">Adding this month</span>
+      <div class="bkt-input">
+        <input id="basketCapital" inputmode="decimal" placeholder="e.g. 1000">
+      </div>
+    </div>
+    <div class="fgroup">
+      <span class="lab">Sectors</span>
+      <div class="fchips" id="basketSectors"></div>
+    </div>
+    <div class="fgroup">
+      <span class="lab">Minimum size</span>
+      <div class="fchips" id="basketMcap"></div>
+    </div>
+
+    <div id="basketBody"></div>
+  </section>
+
 </div>
 
 <button class="fab" id="btnAdd" aria-label="Add company">+</button>
@@ -646,7 +682,6 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
     <button id="btnCompare">Compare companies</button>
     <button id="btnSectorStats">Sector stats</button>
     <button id="btnWhatsChanged">What's changed</button>
-    <button id="btnBasket">Monthly plan</button>
     <button id="btnImport">Import CSV</button>
     <button id="btnExport">Export CSV</button>
     <button class="ghost" id="btnClear">Clear all</button>
@@ -721,7 +756,7 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
     <p>The <b>today</b> figures need one more thing from your proxy: <code>previousClose</code> added to the price-quote response. Without it, the app still shows total value and all-time profit/loss, just not the day's move.</p>
 
     <h3>Monthly plan</h3>
-    <p>Under <b>More</b>. It takes the ranking and your holdings and works out the two things the strategy actually asks each month: what to buy, and what has stopped being cheap.</p>
+    <p>Its own tab in the nav bar. It takes the ranking and your holdings and works out the two things the strategy actually asks each month: what to buy, and what has stopped being cheap.</p>
     <p><b>Buying.</b> While you own fewer companies than you're aiming for, the month's contribution opens new positions at $500 each rather than dusting every name — the ASX won't accept a first purchase in a stock below roughly $500, so $1,000 opens two positions a month, not twenty slivers. Once all the positions are open the same money goes wherever the weights have drifted lightest, which keeps things equal weight without ever selling to rebalance.</p>
     <p><b>Selling.</b> The only trigger is a holding dropping out of the target — never how long you've held it, never how far it has run. It could be nobody one quarter and five the next. Where a dropped holding is in profit, the plan recommends holding to a year and a day so the taxable gain is halved, and shows the date. At a loss there's no discount to wait for, so it says sell.</p>
     <p>Holdings that don't rank at all — a bank, or anything missing figures — are listed separately rather than counted as exits, because a missing multiple isn't the same as a company that got expensive. Anything carrying <b>Check figures</b> is flagged too: a stale multiple can drop a company out of the ranking on its own.</p>
@@ -816,46 +851,6 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
   <div class="sheet-head"><h2 id="coTitle">Company</h2>
     <button class="sheet-x" id="btnCoClose" aria-label="Close">✕</button></div>
   <div id="coBody"></div>
-</div>
-
-<div class="sheet-backdrop" id="basketBackdrop"></div>
-<div class="sheet" id="basketSheet">
-  <div class="sheet-handle"></div>
-  <div class="sheet-head"><h2>Monthly plan</h2>
-    <button class="sheet-x" id="btnBasketClose" aria-label="Close">✕</button></div>
-  <p class="hint" style="margin:0 0 .9rem">What to buy this month and what has stopped being cheap. <b>Buy</b> records the purchase in your portfolio and takes it out of the month's money — it doesn't place an order with your broker.</p>
-
-  <details class="planrules">
-    <summary>The strategy</summary>
-    <ul>
-      <li>Own the <b>cheapest names by Acquirer's multiple</b>, equal weight.</li>
-      <li><b>Top up monthly.</b> A first purchase in any stock has to clear the ASX $500 minimum, so early on the money opens two positions rather than dusting all of them.</li>
-      <li><b>Review quarterly.</b> The only reason to sell is a company dropping out of the target — never how long you've held it, never how far it has run.</li>
-      <li><b>Sell whole positions</b>, never part of one.</li>
-      <li>If something drops out while <b>in profit</b>, holding to a <b>year and a day</b> halves the taxable gain, so wait where that is still ahead. At a loss there is nothing to wait for.</li>
-    </ul>
-  </details>
-
-  <div class="fgroup">
-    <span class="lab">How many companies to own</span>
-    <div class="fchips" id="basketSizes"></div>
-  </div>
-  <div class="fgroup">
-    <span class="lab">Adding this month</span>
-    <div class="bkt-input">
-      <input id="basketCapital" inputmode="decimal" placeholder="e.g. 1000">
-    </div>
-  </div>
-  <div class="fgroup">
-    <span class="lab">Sectors</span>
-    <div class="fchips" id="basketSectors"></div>
-  </div>
-  <div class="fgroup">
-    <span class="lab">Minimum size</span>
-    <div class="fchips" id="basketMcap"></div>
-  </div>
-
-  <div id="basketBody"></div>
 </div>
 
 <div class="sheet-backdrop" id="digestBackdrop"></div>
@@ -2075,15 +2070,18 @@ document.addEventListener("click", function(e){
 
 function setTab(t){
   closeSheet();
-  closeBasket();
   cfg.tab = t; saveCfg();
   document.getElementById("viewMap").style.display = t === "map" ? "" : "none";
   document.getElementById("viewList").style.display = t === "list" ? "" : "none";
   document.getElementById("viewFavs").style.display = t === "favs" ? "" : "none";
   document.getElementById("viewPortfolio").style.display = t === "portfolio" ? "" : "none";
+  document.getElementById("viewPlan").style.display = t === "plan" ? "" : "none";
   /* Search and sort only mean anything on the List, and the row now lives in the pinned
      header rather than inside the List section, so it has to be hidden per tab. */
   document.getElementById("searchRow").style.display = t === "list" ? "" : "none";
+  /* Set once per visit rather than inside renderBasket(), which repaints on every change made
+     while already on this tab — resetting the field there would stomp on whatever's being typed. */
+  if (t === "plan") document.getElementById("basketCapital").value = cfg.basket.capital || "";
   document.querySelectorAll("#navbar .navitem[data-nav]").forEach(function(b){
     b.classList.toggle("sel", b.dataset.nav === t);
   });
@@ -2092,14 +2090,7 @@ function setTab(t){
 }
 document.querySelectorAll("#navbar .navitem[data-nav]").forEach(function(btn){
   btn.addEventListener("click", function(){
-    if (btn.dataset.nav === "plan"){
-      closeSheet();
-      var planOpen = document.getElementById("basketSheet").classList.contains("open");
-      if (planOpen) closeBasket(); else openBasket();
-      return;
-    }
     if (btn.dataset.nav === "more"){
-      closeBasket();
       var isOpen = document.getElementById("moreSheet").classList.contains("open");
       if (isOpen) closeSheet(); else openSheet();
       return;
@@ -2506,21 +2497,6 @@ function renderBasket(){
     toast("Quarterly review recorded");
   });
 }
-function openBasket(){
-  document.getElementById("basketCapital").value = cfg.basket.capital || "";
-  renderBasket();
-  document.getElementById("basketSheet").classList.add("open");
-  document.getElementById("basketBackdrop").classList.add("open");
-}
-function closeBasket(){
-  document.getElementById("basketSheet").classList.remove("open");
-  document.getElementById("basketBackdrop").classList.remove("open");
-}
-document.getElementById("btnBasket").addEventListener("click", function(){
-  closeSheet(); openBasket();
-});
-document.getElementById("btnBasketClose").addEventListener("click", closeBasket);
-document.getElementById("basketBackdrop").addEventListener("click", closeBasket);
 document.getElementById("basketSizes").addEventListener("click", function(e){
   var b = e.target.closest("[data-bsize]"); if (!b) return;
   cfg.basket.size = Number(b.dataset.bsize);
@@ -3470,6 +3446,7 @@ function paint(){
   if (cfg.tab === "map"){ renderMap(scored); renderReadout(scored); }
   else if (cfg.tab === "favs") renderFavsView(scored);
   else if (cfg.tab === "portfolio") renderPortfolio();
+  else if (cfg.tab === "plan") renderBasket();
   else { renderList(scored); renderDigestStrip(); }
   renderFetchAllCount();
   if (detailId) renderDetail();
