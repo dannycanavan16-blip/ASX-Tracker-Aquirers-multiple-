@@ -27,16 +27,20 @@
  *    a `logo` field from now on.
  *
  * HOW LOGOS ARE RESOLVED
- * - The curated TICKER_DOMAINS map below (covers every company in the app's built-in
- *   "Load ASX names" starter list) resolves a ticker to that company's real website domain,
- *   then fetches its favicon via Google's public favicon service (google.com/s2/favicons) —
- *   the same service already used client-side elsewhere in this app, chosen because it's far
+ * - The curated TICKER_DOMAINS map below resolves a ticker to that company's real website
+ *   domain, then fetches its favicon via Google's public favicon service (google.com/s2/favicons)
+ *   — the same service already used client-side elsewhere in this app, chosen because it's far
  *   more reliably reachable than Clearbit's logo API (which has become DNS-unreachable on
  *   some networks since Clearbit's acquisition by HubSpot).
- * - For any ticker not in the map (custom companies you've added by hand), no logo is
+ * - "Load ASX names" now seeds the full ASX list (~1,839 companies), but this map only covers
+ *   the larger/better-known names among them — every company from the original 220-name starter
+ *   list, plus a further couple hundred added afterward. The long tail of small caps, explorers
+ *   and thinly-known LICs deliberately isn't guessed at: a wrong domain here would show a
+ *   different real company's logo, which is worse than the initials fallback those get instead.
+ * - For any ticker not in the map (including custom companies you've added by hand), no logo is
  *   returned — the client falls back to the manual Website field, then a colored-initials
  *   avatar. Add the ticker to TICKER_DOMAINS below any time you want a real logo for a
- *   company outside the starter list.
+ *   company not already covered.
  *
  * A few domains below are best-effort (smaller/less well-known companies) — if one turns out
  * wrong, just fix the string on that line and redeploy; no other code changes needed.
@@ -141,7 +145,58 @@ var TICKER_DOMAINS = {
   MGR:"mirvac.com", DXS:"dexus.com", VCX:"vicinity.com.au",
   GPT:"gpt.com.au", CHC:"charterhall.com.au", CLW:"charterhall.com.au",
   CQR:"charterhall.com.au", NSR:"nationalstorage.com.au", HMC:"hmccapital.com.au",
-  LLC:"lendlease.com"
+  LLC:"lendlease.com",
+
+  /* Added after "Load ASX names" grew from 220 to the full ASX list (~1,839) — these are the
+     larger/well-known names among the rest that I'm actually confident of the real domain for.
+     The long tail of small caps, explorers and thinly-known LICs is deliberately left out rather
+     than guessed at: a wrong domain here shows a different real company's logo, which is worse
+     than the initials fallback it would otherwise get. Add more below any time you're sure of one. */
+
+  // Materials
+  NEM:"newmont.com", AMC:"amcor.com", JHX:"jameshardie.com", AAI:"alcoa.com",
+  CSC:"capstonecopper.com", NXG:"nexgenenergy.ca", PAF:"panafricanresources.com",
+  FBU:"fletcherbuilding.com", RDX:"redox.com", IMD:"imdexlimited.com", ZIM:"zimplats.com",
+
+  // Energy
+  TBN:"tamboranresources.com",
+
+  // Consumer Discretionary
+  LNW:"lnw.com", VGN:"virginaustralia.com",
+
+  // Consumer Staples
+  A2M:"a2milk.com", EBO:"ebosgroup.com",
+
+  // Health Care
+  RMD:"resmed.com", FPH:"fphcare.com", "4DX":"4dmedical.com", REG:"regis.com.au",
+  RYM:"rymanhealthcare.co.nz", SNZ:"summerset.co.nz",
+
+  // Industrials
+  AIA:"aucklandairport.co.nz", FRW:"freightways.co.nz", DRO:"droneshield.com",
+  AIZ:"airnewzealand.co.nz", CVL:"civmec.com.au", SRV:"servcorp.com", IGL:"ivegroup.com.au",
+
+  // Communication Services
+  NWS:"newscorp.com", NWSLV:"newscorp.com", CNU:"chorus.co.nz", SPK:"spark.co.nz",
+
+  // Information Technology
+  XRO:"xero.com", "360":"life360.com", XYZ:"block.xyz", FCL:"fineos.com",
+
+  // Utilities
+  MEZ:"meridianenergy.co.nz", CEN:"contactenergy.co.nz", MCY:"mercury.co.nz",
+  GNE:"genesisenergy.co.nz",
+
+  // Financials
+  SOL:"whsp.com.au", AFI:"afi.com.au", ARG:"argoinvestments.com.au", MFF:"mffcapital.com.au",
+  AUI:"aui.com.au", MXT:"metrics.com.au", WLE:"wamfunds.com.au", WAM:"wamfunds.com.au",
+  BKI:"bkilimited.com.au", HLI:"helia.com.au", CCP:"creditcorp.com.au",
+  AEF:"australianethical.com.au", EQT:"eqt.com.au", MYS:"mystate.com.au", PPM:"pepper.com.au",
+  OBL:"omnibridgeway.com", PXA:"pexa.com.au", HGH:"heartlandgroup.info",
+
+  // Real Estate (REIT) — more added later
+  BWP:"bwptrust.com.au", RGN:"regiongroup.com.au", CIP:"centuria.com.au",
+  CNI:"centuria.com.au", INA:"ingeniacommunities.com.au", GOZ:"growthpoint.com.au",
+  WPR:"waypointreit.com.au", RFF:"ruralfunds.com.au", CMW:"cromwell.com.au",
+  IFT:"infratil.com", TWR:"tower.co.nz", THL:"thlonline.com"
 };
 
 /**
