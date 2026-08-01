@@ -602,6 +602,11 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
   </section>
 
   <section id="viewPortfolio" style="display:none">
+    <div class="seg" id="portfolioModeSeg">
+      <button data-mode="real">Real</button>
+      <button data-mode="practice">Practice</button>
+    </div>
+    <div id="portfolioModeWarn"></div>
     <div class="portfolio-summary" id="portfolioSummary"></div>
     <div class="ledger" id="portfolioLedger"></div>
   </section>
@@ -723,6 +728,7 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
     <p>Open any company and add a <b>buy</b> — date, shares, price paid — under its Portfolio section. Add as many as you like for the same company; the app averages your cost across all of them. Once a company has at least one buy, it shows up in the <b>Portfolio</b> tab with its current value and unrealised profit or loss, and the tab's summary totals everything you hold. Nothing here is sent anywhere — it's stored the same way as the rest of your data.</p>
     <p><b>Selling</b> takes the whole position in one go — that's how this strategy exits, so there's no share count to retype, just the price. The sale is recorded alongside your buys rather than erasing them, so realised profit survives and the position stays visible under <b>Closed</b> with its result. If the position is in profit and has dropped out of the ranking, you'll be told the date it reaches a year and a day first; you can still sell anyway.</p>
     <p>The <b>today</b> figures need one more thing from your proxy: <code>previousClose</code> added to the price-quote response. Without it, the app still shows total value and all-time profit/loss, just not the day's move.</p>
+    <p><b>Real / Practice</b>, at the top of this tab, is a second, entirely separate set of buys and sells — a way to run the strategy on paper and see how it performs before putting real money behind it. Switching doesn't touch your other holdings; every buy or sell you record is filed under whichever one is selected at the time, and each shows only its own positions, totals and closed trades. The Monthly Plan always works from whichever one is currently selected here, with no separate setting of its own.</p>
 
     <h3>Monthly plan</h3>
     <p>Its own tab in the nav bar. It takes the ranking and your holdings and works out the two things the strategy actually asks each month: what to buy, and what has stopped being cheap.</p>
@@ -938,7 +944,7 @@ var ZONE_MAX = 8;
 
 var data = [], cfg = { proxy:"", auto:false, tab:"map", hidden:[], showEx:false, lastSync:null,
   sortBy:"multiple", filters:{ mult:"any", debt:"any", size:"any", data:"any" }, presets:[], lastSeen:"",
-  basket:{ size:20, capital:"", lastRebalance:"" }, fx:{ rates:{}, updated:0 } };
+  basket:{ size:20, capital:"", lastRebalance:"" }, fx:{ rates:{}, updated:0 }, activePortfolio:"real" };
 var openId = null, pinnedId = null, pasteOpen = null, busy = false;
 var detailId = null, buyOpen = null;
 var lastDeleted = null, undoTimer = null;
@@ -1074,12 +1080,17 @@ function fmtLongDate(d){
    that a stray partial sell (a hand correction, a bad import) can't leave a negative cost
    base. It is not a rule the app asks you to follow and never affects a whole exit. */
 function lotType(l){ return l && l.type === "sell" ? "sell" : "buy"; }
+/* The one place every position/CGT/plan calculation reads lots through — filtering here for the
+   active portfolio (an untagged lot is a pre-existing "real" one) makes the whole app portfolio-aware
+   without touching any of the functions built on top of it. */
 function lotsByDate(c){
+  var mode = cfg.activePortfolio || "real";
   /* Undated lots sort first so they behave like the oldest thing on the books rather than
      jumping ahead of a dated sell. */
-  return (c.lots || []).slice().sort(function(a, b){
-    return String(a.date || "").localeCompare(String(b.date || ""));
-  });
+  return (c.lots || []).filter(function(l){ return (l.portfolio || "real") === mode; })
+    .sort(function(a, b){
+      return String(a.date || "").localeCompare(String(b.date || ""));
+    });
 }
 function positionOf(c){
   var open = [], realised = 0, sold = 0, proceeds = 0, oversold = 0;
@@ -2512,7 +2523,8 @@ document.getElementById("basketBody").addEventListener("click", function(e){
   if (!row || row.shares <= 0 || row.price <= 0){ toast("Nothing to buy on that row"); return; }
   var c = row.c;
   if (!c.lots) c.lots = [];
-  c.lots.push({ id: uid(), type:"buy", date: isoOf(today0()), shares: row.shares, price: row.price });
+  c.lots.push({ id: uid(), type:"buy", date: isoOf(today0()), shares: row.shares, price: row.price,
+    portfolio: cfg.activePortfolio || "real" });
   var was = num(cfg.basket.capital), left = Math.max(0, was - row.cost);
   cfg.basket.capital = left ? String(Math.round(left * 100) / 100) : "";
   save(); saveCfg(); paint();
@@ -3021,7 +3033,19 @@ function closedRowHTML(c){
   '</div>';
 }
 
+function renderPortfolioMode(){
+  var mode = cfg.activePortfolio || "real";
+  document.querySelectorAll('#portfolioModeSeg [data-mode]').forEach(function(b){
+    b.setAttribute("aria-pressed", b.dataset.mode === mode);
+  });
+  document.getElementById("portfolioModeWarn").innerHTML = mode === "practice"
+    ? '<p class="planwarn">Practice portfolio — not real money. Buys and sells recorded here ' +
+      'don\'t touch your Real portfolio, so you can see how the strategy would have performed ' +
+      'without risking anything.</p>'
+    : "";
+}
 function renderPortfolio(){
+  renderPortfolioMode();
   var sum = document.getElementById("portfolioSummary");
   var host = document.getElementById("portfolioLedger");
   var held = data.filter(isHeld);
@@ -3081,6 +3105,11 @@ document.getElementById("portfolioLedger").addEventListener("click", function(e)
     if (el) el.scrollIntoView({ behavior:"smooth", block:"start" });
   }, 60);
 });
+document.getElementById("portfolioModeSeg").addEventListener("click", function(e){
+  var b = e.target.closest("[data-mode]"); if (!b) return;
+  cfg.activePortfolio = b.dataset.mode;
+  saveCfg(); paint();
+});
 
 /* ===================== list ===================== */
 function f(cid, key, label, val, ph){
@@ -3109,10 +3138,13 @@ function researchHTML(c){
 }
 
 function portfolioFieldsetHTML(c){
-  var lots = c.lots || [];
+  /* The active portfolio's lots only — a company bought only in the other portfolio must show as
+     empty here, not an empty-but-present table, and the delete button must never reach a lot that
+     isn't the one currently on screen. */
+  var lots = lotsByDate(c);
   var p = positionOf(c);
   var sh = p.shares;
-  var rows = lotsByDate(c).map(function(l){
+  var rows = lots.map(function(l){
     var sell = lotType(l) === "sell";
     return '<div class="lotrow' + (sell ? ' sell' : '') + '" data-lot="' + l.id + '">' +
       '<span class="lotcell">' + esc(l.date || "") + '</span>' +
@@ -3583,7 +3615,7 @@ function ledgerClick(e){
         if (shN <= 0 || prN <= 0){ toast("Enter shares and a price first"); return; }
         if (!c.lots) c.lots = [];
         c.lots.push({ id: uid(), type:"buy", date: (dEl && dEl.value) || isoOf(today0()),
-          shares: shN, price: prN });
+          shares: shN, price: prN, portfolio: cfg.activePortfolio || "real" });
         buyOpen = null;
         save(); paint();
         toast("Bought " + shN.toLocaleString() + " sh at " + fmtD(prN));
@@ -3604,7 +3636,7 @@ function ledgerClick(e){
               fmtLongDate(sAdv.ready) + " halves the taxable gain.\n\nSell all " +
               pos.shares.toLocaleString() + " shares anyway?")) return;
         c.lots.push({ id: uid(), type:"sell", date: (sdEl && sdEl.value) || isoOf(today0()),
-          shares: pos.shares, price: spN });
+          shares: pos.shares, price: spN, portfolio: cfg.activePortfolio || "real" });
         save(); paint();
         var done = realisedPL(c);
         toast("Sold " + pos.shares.toLocaleString() + " sh · realised " +
@@ -4365,6 +4397,7 @@ Promise.all([store.get(KEY), store.get(CFGKEY)]).then(function(r){
         if (/^[A-Z]{6}$/.test(k) && num(sfx.rates[k]) > 0) cfg.fx.rates[k] = num(sfx.rates[k]);
       });
     }
+    cfg.activePortfolio = ["real","practice"].indexOf(r[1].activePortfolio) >= 0 ? r[1].activePortfolio : "real";
   }
   document.getElementById("proxyUrl").value = cfg.proxy;
   document.getElementById("btnAutoToggle").textContent = "Auto-refresh: " + (cfg.auto ? "on" : "off");
