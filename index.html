@@ -623,6 +623,11 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
   <button class="navitem" data-nav="portfolio" aria-label="Portfolio">
     <svg viewBox="0 0 24 24"><rect x="3" y="7" width="18" height="13" rx="2"></rect><path d="M8 7V5a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path></svg>
     Portfolio</button>
+  <button class="navitem" data-nav="plan" aria-label="Monthly plan">
+    <svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="16" rx="2"></rect>
+    <line x1="3" y1="10" x2="21" y2="10"></line><line x1="8" y1="3" x2="8" y2="7"></line>
+    <line x1="16" y1="3" x2="16" y2="7"></line><path d="M8 15l2.5 2.5L16 12"></path></svg>
+    Plan</button>
   <button class="navitem" data-nav="more" aria-label="More">
     <svg viewBox="0 0 24 24"><circle cx="6" cy="12" r="1.4" fill="currentColor" stroke="none"></circle><circle cx="12" cy="12" r="1.4" fill="currentColor" stroke="none"></circle><circle cx="18" cy="12" r="1.4" fill="currentColor" stroke="none"></circle></svg>
     More</button>
@@ -2070,6 +2075,7 @@ document.addEventListener("click", function(e){
 
 function setTab(t){
   closeSheet();
+  closeBasket();
   cfg.tab = t; saveCfg();
   document.getElementById("viewMap").style.display = t === "map" ? "" : "none";
   document.getElementById("viewList").style.display = t === "list" ? "" : "none";
@@ -2086,7 +2092,14 @@ function setTab(t){
 }
 document.querySelectorAll("#navbar .navitem[data-nav]").forEach(function(btn){
   btn.addEventListener("click", function(){
+    if (btn.dataset.nav === "plan"){
+      closeSheet();
+      var planOpen = document.getElementById("basketSheet").classList.contains("open");
+      if (planOpen) closeBasket(); else openBasket();
+      return;
+    }
     if (btn.dataset.nav === "more"){
+      closeBasket();
       var isOpen = document.getElementById("moreSheet").classList.contains("open");
       if (isOpen) closeSheet(); else openSheet();
       return;
