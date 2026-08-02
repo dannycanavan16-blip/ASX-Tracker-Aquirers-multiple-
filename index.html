@@ -607,6 +607,9 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
       <button data-mode="practice">Practice</button>
     </div>
     <div id="portfolioModeWarn"></div>
+    <div style="display:flex;justify-content:flex-end;margin:.3rem 0 0">
+      <button class="ghost mini" id="btnClearLots">Clear lots</button>
+    </div>
     <div class="portfolio-summary" id="portfolioSummary"></div>
     <div class="ledger" id="portfolioLedger"></div>
   </section>
@@ -3043,6 +3046,25 @@ function renderPortfolioMode(){
       'don\'t touch your Real portfolio, so you can see how the strategy would have performed ' +
       'without risking anything.</p>'
     : "";
+  document.getElementById("btnClearLots").textContent =
+    "Clear " + (mode === "practice" ? "Practice" : "Real") + " lots";
+}
+/* Wipes only the active portfolio's buy/sell lots — company records, financials and the other
+   portfolio's history are untouched. Mirrors the "Clear all" handler's shape but scoped to c.lots. */
+function clearActivePortfolioLots(){
+  var mode = cfg.activePortfolio || "real";
+  var affected = data.filter(function(c){
+    return (c.lots || []).some(function(l){ return (l.portfolio || "real") === mode; });
+  });
+  if (!affected.length) return;
+  var label = mode === "practice" ? "Practice" : "Real";
+  if (!confirm("Clear all " + label + " buy/sell lots across " + affected.length +
+    " compan" + (affected.length === 1 ? "y" : "ies") + "? Company data, financials and the other " +
+    "portfolio's lots stay put. This cannot be undone.")) return;
+  data.forEach(function(c){
+    c.lots = (c.lots || []).filter(function(l){ return (l.portfolio || "real") !== mode; });
+  });
+  save(); paint(); toast(label + " lots cleared");
 }
 function renderPortfolio(){
   renderPortfolioMode();
@@ -3110,6 +3132,7 @@ document.getElementById("portfolioModeSeg").addEventListener("click", function(e
   cfg.activePortfolio = b.dataset.mode;
   saveCfg(); paint();
 });
+document.getElementById("btnClearLots").addEventListener("click", clearActivePortfolioLots);
 
 /* ===================== list ===================== */
 function f(cid, key, label, val, ph){
