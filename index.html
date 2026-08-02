@@ -517,6 +517,27 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
 .sectorstat-bar{height:6px;background:var(--rule);border-radius:99px;margin-top:.6rem;overflow:hidden}
 .sectorstat-fill{height:100%;background:var(--green)}
 
+/* ---------- portfolio holdings bar chart ---------- */
+.pfchart{display:flex;align-items:flex-end;gap:.5rem;height:120px;
+  padding:.6rem .8rem 0;overflow-x:auto}
+.pfchart-bar{flex:0 0 auto;width:2.2rem;display:flex;flex-direction:column;
+  align-items:center;justify-content:flex-end;height:100%;cursor:pointer;
+  background:transparent;border:0;box-shadow:none;padding:0}
+.pfchart-fill{width:100%;border-radius:4px 4px 0 0;min-height:4px}
+.pfchart-tkr{font-family:var(--cond);font-weight:600;font-size:.6rem;
+  letter-spacing:.03em;color:var(--ink-soft);margin-top:.3rem;
+  white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
+.pfchart-pct{font-family:var(--mono);font-size:.62rem;color:var(--ink-soft);
+  margin-bottom:.2rem}
+
+/* ---------- portfolio sector allocation (holdings only, not the whole watchlist) ---------- */
+.pfsector{padding:.6rem .8rem 0}
+.pfsector-row{margin-bottom:.55rem}
+.pfsector-row:last-child{margin-bottom:0}
+.pfsector-head{display:flex;justify-content:space-between;font-size:.78rem;
+  color:var(--ink-soft);margin-bottom:.25rem}
+.pfsector-head b{color:var(--ink);font-weight:600}
+
 /* ---------- bottom nav + FAB ---------- */
 .navbar{position:fixed;left:0;right:0;bottom:0;z-index:70;display:flex;
   background:var(--paper-2);border-top:1px solid var(--rule);
@@ -611,6 +632,8 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
       <button class="ghost mini" id="btnClearLots">Clear lots</button>
     </div>
     <div class="portfolio-summary" id="portfolioSummary"></div>
+    <div id="portfolioChart"></div>
+    <div id="portfolioSectorChart"></div>
     <div class="ledger" id="portfolioLedger"></div>
   </section>
 
@@ -3036,6 +3059,52 @@ function closedRowHTML(c){
   '</div>';
 }
 
+/* Vertical bars, one per held company, height = weight of total holding value (normalised to
+   the largest position, not a flat 0-100 scale, so a book with no single large position doesn't
+   render every bar squashed near the floor). Colour is unrealised P/L direction, matching the row
+   list above — a status colour, not identity, so no legend is needed; the ticker label under each
+   bar carries identity instead. */
+function portfolioChartHTML(held, totalValue){
+  if (!held.length || totalValue <= 0) return "";
+  var weighted = held.map(function(c){ return { c: c, pct: holdingValue(c) / totalValue * 100 }; });
+  var maxPct = Math.max.apply(null, weighted.map(function(w){ return w.pct; }));
+  if (maxPct <= 0) return "";
+  return '<div class="pfchart">' + weighted.map(function(w){
+    var h = Math.max(4, w.pct / maxPct * 100);
+    var col = unrealizedPL(w.c) >= 0 ? "var(--green)" : "var(--oxide)";
+    return '<button class="pfchart-bar" data-id="' + w.c.id + '" title="' +
+      esc(w.c.tkr) + " · " + w.pct.toFixed(1) + '% of portfolio">' +
+      '<span class="pfchart-pct tnum">' + w.pct.toFixed(0) + '%</span>' +
+      '<div class="pfchart-fill" style="height:' + h.toFixed(0) + '%;background:' + col + '"></div>' +
+      '<span class="pfchart-tkr">' + esc(w.c.tkr) + '</span>' +
+    '</button>';
+  }).join("") + '</div>';
+}
+
+/* What % of currently-held value sits in each sector — scoped to holdings only, distinct from
+   the watchlist-wide Sector Stats sheet which covers every tracked company regardless of whether
+   it's owned. */
+function portfolioSectorHTML(held, totalValue){
+  if (!held.length || totalValue <= 0) return "";
+  var bySector = {};
+  held.forEach(function(c){
+    var sec = c.sector || "Other";
+    bySector[sec] = (bySector[sec] || 0) + holdingValue(c);
+  });
+  var rows = Object.keys(bySector).map(function(sec){
+    return { sector: sec, value: bySector[sec], pct: bySector[sec] / totalValue * 100 };
+  }).sort(function(a, b){ return b.value - a.value; });
+  return '<div class="pfsector">' + rows.map(function(r){
+    var col = SECCOL[r.sector] || "var(--ink-soft)";
+    return '<div class="pfsector-row">' +
+      '<div class="pfsector-head"><b>' + esc(SHORTSEC[r.sector] || r.sector) + '</b><span>' +
+        r.pct.toFixed(0) + '%</span></div>' +
+      '<div class="sectorstat-bar"><div class="sectorstat-fill" style="width:' +
+        r.pct.toFixed(0) + '%;background:' + col + '"></div></div>' +
+    '</div>';
+  }).join("") + '</div>';
+}
+
 function renderPortfolioMode(){
   var mode = cfg.activePortfolio || "real";
   document.querySelectorAll('#portfolioModeSeg [data-mode]').forEach(function(b){
@@ -3074,6 +3143,8 @@ function renderPortfolio(){
   var closed = data.filter(isClosed);
   if (!held.length && !closed.length){
     sum.innerHTML = "";
+    document.getElementById("portfolioChart").innerHTML = "";
+    document.getElementById("portfolioSectorChart").innerHTML = "";
     host.innerHTML = '<div class="empty"><p>Nothing held yet — open a company from the List and add a buy lot under its Portfolio section to start tracking it here.</p></div>';
     return;
   }
@@ -3106,6 +3177,8 @@ function renderPortfolio(){
         fmtD(totalRealised) + '</div>' +
       '<div class="portfolio-sub">realised · nothing held right now</div>';
   var sorted = held.slice().sort(function(a,b){ return unrealizedPLPct(b) - unrealizedPLPct(a); });
+  document.getElementById("portfolioChart").innerHTML = portfolioChartHTML(sorted, totalValue);
+  document.getElementById("portfolioSectorChart").innerHTML = portfolioSectorHTML(sorted, totalValue);
   host.innerHTML = sorted.map(function(c){
     return '<div class="rowwrap" data-id="' + c.id + '">' + portfolioRowHTML(c) + '</div>';
   }).join("") +
@@ -3120,12 +3193,11 @@ function renderPortfolio(){
 
 document.getElementById("portfolioLedger").addEventListener("click", function(e){
   var wrap = e.target.closest(".rowwrap"); if (!wrap) return;
-  openId = wrap.dataset.id; pinnedId = wrap.dataset.id;
-  setTab("list");
-  setTimeout(function(){
-    var el = document.querySelector('#ledger .rowwrap[data-id="' + openId + '"]');
-    if (el) el.scrollIntoView({ behavior:"smooth", block:"start" });
-  }, 60);
+  openDetail(wrap.dataset.id);
+});
+document.getElementById("portfolioChart").addEventListener("click", function(e){
+  var bar = e.target.closest(".pfchart-bar"); if (!bar) return;
+  openDetail(bar.dataset.id);
 });
 document.getElementById("portfolioModeSeg").addEventListener("click", function(e){
   var b = e.target.closest("[data-mode]"); if (!b) return;
