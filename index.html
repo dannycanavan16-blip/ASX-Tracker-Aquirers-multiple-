@@ -520,14 +520,17 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
 /* ---------- portfolio holdings bar chart ---------- */
 /* Grid, not flex+scroll: every holding gets an equal-width column across the full row,
    however many there are, so nothing requires swiping to see. */
-.pfchart{display:grid;gap:.4rem;height:200px;padding:.6rem .8rem 0 2.2rem;position:relative}
+.pfchart{display:grid;gap:.4rem;height:200px;padding:.6rem .8rem 0 2.2rem;position:relative;overflow:hidden}
 .pfchart-grid{position:absolute;left:2.2rem;right:.8rem;border-top:1px solid var(--rule);height:0}
 .pfchart-grid span{position:absolute;left:-2.2rem;top:-.5em;width:2rem;text-align:right;
   font-family:var(--mono);font-size:.6rem;color:var(--ink-soft)}
+/* min-width:0 overrides a grid item's default minmax(auto,1fr) — without it, a column can never
+   shrink below its avatar/ticker's natural width, so enough holdings force the whole track (and the
+   page, since nothing here scrolls internally) wider than the viewport instead of just compressing. */
 .pfchart-bar{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;
-  height:100%;cursor:pointer;background:transparent;border:0;box-shadow:none;padding:0;
+  height:100%;min-width:0;cursor:pointer;background:transparent;border:0;box-shadow:none;padding:0;
   position:relative;z-index:1}
-.pfchart-bar .avatar{width:1.5rem;height:1.5rem;margin-bottom:.25rem}
+.pfchart-bar .avatar{width:min(1.5rem,100%);height:auto;aspect-ratio:1;margin-bottom:.25rem}
 .pfchart-fill{width:70%;border-radius:4px 4px 0 0;min-height:4px}
 .pfchart-tkr{font-family:var(--cond);font-weight:600;font-size:.6rem;
   letter-spacing:.03em;color:var(--ink-soft);margin-top:.3rem;
@@ -3086,6 +3089,19 @@ function portfolioExpandHTML(c){
   '</div>';
 }
 
+/* Smallest "nice" number (1/2/5/10 times a power of ten) that's >= x — keeps the axis ceiling
+   proportionate at any scale, instead of a fixed floor that would flatten every bar to the minimum
+   height when a whole book's gains are clustered near zero (e.g. right after opening positions). */
+function niceCeil(x){
+  if (x <= 0) return 1;
+  var mag = Math.pow(10, Math.floor(Math.log10(x)));
+  var steps = [1, 2, 5, 10];
+  for (var i = 0; i < steps.length; i++){
+    if (steps[i] * mag >= x) return steps[i] * mag;
+  }
+  return 10 * mag;
+}
+
 /* Vertical bars, one per held company, in a grid spanning the full width — every holding gets a
    column, however many there are, so nothing needs swiping to see. Height = magnitude of all-time
    gain (unrealizedPLPct), normalised to the largest mover rather than a flat 0-100 scale, floored so
@@ -3095,12 +3111,14 @@ function portfolioChartHTML(held){
   if (!held.length) return "";
   var weighted = held.map(function(c){ return { c: c, pct: unrealizedPLPct(c) }; });
   var maxAbs = Math.max.apply(null, weighted.map(function(w){ return Math.abs(w.pct); })) || 0;
-  var ceil = Math.max(10, Math.ceil(maxAbs / 10) * 10);
+  var ceil = niceCeil(maxAbs);
+  /* A tight (small-magnitude) axis needs decimal precision or every small value reads as "+0%". */
+  var dp = ceil < 10 ? 1 : 0;
   var steps = 4, grid = "";
   for (var i = 0; i <= steps; i++){
     var atPct = i / steps * 100, val = i / steps * ceil;
     grid += '<div class="pfchart-grid" style="bottom:' + atPct.toFixed(1) + '%">' +
-      '<span>' + val.toFixed(0) + '%</span></div>';
+      '<span>' + val.toFixed(dp) + '%</span></div>';
   }
   var bars = weighted.map(function(w){
     var h = Math.max(4, Math.abs(w.pct) / ceil * 100);
@@ -3108,7 +3126,7 @@ function portfolioChartHTML(held){
     return '<button class="pfchart-bar" data-id="' + w.c.id + '" title="' + esc(w.c.tkr) + " · " +
       (w.pct >= 0 ? "+" : "") + w.pct.toFixed(1) + '% all-time">' +
       avatarHTML(w.c) +
-      '<span class="pfchart-pct tnum">' + (w.pct >= 0 ? "+" : "") + w.pct.toFixed(0) + '%</span>' +
+      '<span class="pfchart-pct tnum">' + (w.pct >= 0 ? "+" : "") + w.pct.toFixed(dp) + '%</span>' +
       '<div class="pfchart-fill" style="height:' + h.toFixed(0) + '%;background:' + col + '"></div>' +
       '<span class="pfchart-tkr">' + esc(w.c.tkr) + '</span>' +
     '</button>';
