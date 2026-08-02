@@ -518,12 +518,17 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
 .sectorstat-fill{height:100%;background:var(--green)}
 
 /* ---------- portfolio holdings bar chart ---------- */
-.pfchart{display:flex;align-items:flex-end;gap:.5rem;height:120px;
-  padding:.6rem .8rem 0;overflow-x:auto}
-.pfchart-bar{flex:0 0 auto;width:2.2rem;display:flex;flex-direction:column;
-  align-items:center;justify-content:flex-end;height:100%;cursor:pointer;
-  background:transparent;border:0;box-shadow:none;padding:0}
-.pfchart-fill{width:100%;border-radius:4px 4px 0 0;min-height:4px}
+/* Grid, not flex+scroll: every holding gets an equal-width column across the full row,
+   however many there are, so nothing requires swiping to see. */
+.pfchart{display:grid;gap:.4rem;height:200px;padding:.6rem .8rem 0 2.2rem;position:relative}
+.pfchart-grid{position:absolute;left:2.2rem;right:.8rem;border-top:1px solid var(--rule);height:0}
+.pfchart-grid span{position:absolute;left:-2.2rem;top:-.5em;width:2rem;text-align:right;
+  font-family:var(--mono);font-size:.6rem;color:var(--ink-soft)}
+.pfchart-bar{display:flex;flex-direction:column;align-items:center;justify-content:flex-end;
+  height:100%;cursor:pointer;background:transparent;border:0;box-shadow:none;padding:0;
+  position:relative;z-index:1}
+.pfchart-bar .avatar{width:1.5rem;height:1.5rem;margin-bottom:.25rem}
+.pfchart-fill{width:70%;border-radius:4px 4px 0 0;min-height:4px}
 .pfchart-tkr{font-family:var(--cond);font-weight:600;font-size:.6rem;
   letter-spacing:.03em;color:var(--ink-soft);margin-top:.3rem;
   white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:100%}
@@ -972,6 +977,10 @@ var data = [], cfg = { proxy:"", auto:false, tab:"map", hidden:[], showEx:false,
   sortBy:"multiple", filters:{ mult:"any", debt:"any", size:"any", data:"any" }, presets:[], lastSeen:"",
   basket:{ size:20, capital:"", lastRebalance:"" }, fx:{ rates:{}, updated:0 }, activePortfolio:"real" };
 var openId = null, pinnedId = null, pasteOpen = null, busy = false;
+/* Separate from openId: that one also drives List-row highlighting and Map pin state, so reusing
+   it here would make a company look "open" on the List tab or move the Map pin just from expanding
+   it in Portfolio. */
+var portfolioOpenId = null;
 var detailId = null, buyOpen = null;
 var lastDeleted = null, undoTimer = null;
 
@@ -3027,7 +3036,7 @@ document.getElementById("favsledger").addEventListener("click", function(e){
 function portfolioRowHTML(c){
   var pl = unrealizedPL(c), dch = dayChangeValue(c);
   var plCls = pl >= 0 ? "cheap" : "rich", dchCls = dch >= 0 ? "cheap" : "rich";
-  return '<div class="row-main">' +
+  return '<div class="row-main" data-act="toggle">' +
     avatarHTML(c) +
     '<div class="name-block">' +
       '<span class="tkr">' + esc(c.tkr) + '</span><span class="co">' + esc(c.co) + '</span>' +
@@ -3045,7 +3054,7 @@ function portfolioRowHTML(c){
 function closedRowHTML(c){
   var p = positionOf(c);
   var plCls = p.realised >= 0 ? "cheap" : "rich";
-  return '<div class="row-main">' +
+  return '<div class="row-main" data-act="toggle">' +
     avatarHTML(c) +
     '<div class="name-block">' +
       '<span class="tkr">' + esc(c.tkr) + '</span><span class="co">' + esc(c.co) + '</span>' +
@@ -3059,26 +3068,53 @@ function closedRowHTML(c){
   '</div>';
 }
 
-/* Vertical bars, one per held company, height = weight of total holding value (normalised to
-   the largest position, not a flat 0-100 scale, so a book with no single large position doesn't
-   render every bar squashed near the floor). Colour is unrealised P/L direction, matching the row
-   list above — a status colour, not identity, so no legend is needed; the ticker label under each
-   bar carries identity instead. */
-function portfolioChartHTML(held, totalValue){
-  if (!held.length || totalValue <= 0) return "";
-  var weighted = held.map(function(c){ return { c: c, pct: holdingValue(c) / totalValue * 100 }; });
-  var maxPct = Math.max.apply(null, weighted.map(function(w){ return w.pct; }));
-  if (maxPct <= 0) return "";
-  return '<div class="pfchart">' + weighted.map(function(w){
-    var h = Math.max(4, w.pct / maxPct * 100);
-    var col = unrealizedPL(w.c) >= 0 ? "var(--green)" : "var(--oxide)";
-    return '<button class="pfchart-bar" data-id="' + w.c.id + '" title="' +
-      esc(w.c.tkr) + " · " + w.pct.toFixed(1) + '% of portfolio">' +
-      '<span class="pfchart-pct tnum">' + w.pct.toFixed(0) + '%</span>' +
+/* Always rendered, shown/hidden purely by the .rowwrap.open CSS rule already used by the List
+   tab's own .summary panel — the tap-to-expand and its "More" button both reuse that convention
+   rather than opening the full editor on the first tap. */
+function portfolioExpandHTML(c){
+  var p = positionOf(c);
+  var body = isHeld(c)
+    ? '<div><span class="cap">Avg cost</span><b>' + fmtD(avgCost(c)) + '</b></div>' +
+      '<div><span class="cap">Cost basis</span><b>' + fmtD(p.cost) + '</b></div>' +
+      '<div><span class="cap">Current price</span><b>' + fmtD(num(c.price)) + '</b></div>'
+    : '<div><span class="cap">Shares sold</span><b>' + p.sold.toLocaleString() + '</b></div>' +
+      '<div><span class="cap">Proceeds</span><b>' + fmtD(p.proceeds) + '</b></div>' +
+      '<div><span class="cap">Realised</span><b>' + (p.realised >= 0 ? "+" : "") + fmtD(p.realised) + '</b></div>';
+  return '<div class="summary">' +
+    '<div class="sectorstat-metrics">' + body + '</div>' +
+    '<button class="primary mini" data-act="more" data-id="' + c.id + '" style="margin-top:.6rem">More</button>' +
+  '</div>';
+}
+
+/* Vertical bars, one per held company, in a grid spanning the full width — every holding gets a
+   column, however many there are, so nothing needs swiping to see. Height = magnitude of all-time
+   gain (unrealizedPLPct), normalised to the largest mover rather than a flat 0-100 scale, floored so
+   a small move stays visible. Colour is the gain's direction — a status colour, not identity, so no
+   legend is needed; the logo (avatarHTML) and ticker label under each bar carry identity instead. */
+function portfolioChartHTML(held){
+  if (!held.length) return "";
+  var weighted = held.map(function(c){ return { c: c, pct: unrealizedPLPct(c) }; });
+  var maxAbs = Math.max.apply(null, weighted.map(function(w){ return Math.abs(w.pct); })) || 0;
+  var ceil = Math.max(10, Math.ceil(maxAbs / 10) * 10);
+  var steps = 4, grid = "";
+  for (var i = 0; i <= steps; i++){
+    var atPct = i / steps * 100, val = i / steps * ceil;
+    grid += '<div class="pfchart-grid" style="bottom:' + atPct.toFixed(1) + '%">' +
+      '<span>' + val.toFixed(0) + '%</span></div>';
+  }
+  var bars = weighted.map(function(w){
+    var h = Math.max(4, Math.abs(w.pct) / ceil * 100);
+    var col = w.pct >= 0 ? "var(--green)" : "var(--oxide)";
+    return '<button class="pfchart-bar" data-id="' + w.c.id + '" title="' + esc(w.c.tkr) + " · " +
+      (w.pct >= 0 ? "+" : "") + w.pct.toFixed(1) + '% all-time">' +
+      avatarHTML(w.c) +
+      '<span class="pfchart-pct tnum">' + (w.pct >= 0 ? "+" : "") + w.pct.toFixed(0) + '%</span>' +
       '<div class="pfchart-fill" style="height:' + h.toFixed(0) + '%;background:' + col + '"></div>' +
       '<span class="pfchart-tkr">' + esc(w.c.tkr) + '</span>' +
     '</button>';
-  }).join("") + '</div>';
+  }).join("");
+  return '<div class="pfchart" style="grid-template-columns:repeat(' + weighted.length + ',1fr)">' +
+    grid + bars + '</div>';
 }
 
 /* What % of currently-held value sits in each sector — scoped to holdings only, distinct from
@@ -3177,27 +3213,38 @@ function renderPortfolio(){
         fmtD(totalRealised) + '</div>' +
       '<div class="portfolio-sub">realised · nothing held right now</div>';
   var sorted = held.slice().sort(function(a,b){ return unrealizedPLPct(b) - unrealizedPLPct(a); });
-  document.getElementById("portfolioChart").innerHTML = portfolioChartHTML(sorted, totalValue);
+  document.getElementById("portfolioChart").innerHTML = portfolioChartHTML(sorted);
   document.getElementById("portfolioSectorChart").innerHTML = portfolioSectorHTML(sorted, totalValue);
   host.innerHTML = sorted.map(function(c){
-    return '<div class="rowwrap" data-id="' + c.id + '">' + portfolioRowHTML(c) + '</div>';
+    return '<div class="rowwrap' + (c.id === portfolioOpenId ? ' open' : '') + '" data-id="' + c.id + '">' +
+      portfolioRowHTML(c) + portfolioExpandHTML(c) + '</div>';
   }).join("") +
   (closed.length
     ? '<div class="pf-sec">Closed</div>' +
       closed.slice().sort(function(a,b){ return realisedPL(b) - realisedPL(a); })
         .map(function(c){
-          return '<div class="rowwrap closed" data-id="' + c.id + '">' + closedRowHTML(c) + '</div>';
+          return '<div class="rowwrap closed' + (c.id === portfolioOpenId ? ' open' : '') +
+            '" data-id="' + c.id + '">' + closedRowHTML(c) + portfolioExpandHTML(c) + '</div>';
         }).join("")
     : "");
 }
 
 document.getElementById("portfolioLedger").addEventListener("click", function(e){
-  var wrap = e.target.closest(".rowwrap"); if (!wrap) return;
-  openDetail(wrap.dataset.id);
+  var more = e.target.closest('[data-act="more"]');
+  if (more){ openDetail(more.dataset.id); return; }
+  var main = e.target.closest('[data-act="toggle"]'); if (!main) return;
+  var wrap = main.closest(".rowwrap");
+  portfolioOpenId = (portfolioOpenId === wrap.dataset.id) ? null : wrap.dataset.id;
+  paint();
 });
 document.getElementById("portfolioChart").addEventListener("click", function(e){
   var bar = e.target.closest(".pfchart-bar"); if (!bar) return;
-  openDetail(bar.dataset.id);
+  portfolioOpenId = bar.dataset.id;
+  paint();
+  setTimeout(function(){
+    var el = document.querySelector('#portfolioLedger .rowwrap[data-id="' + bar.dataset.id + '"]');
+    if (el) el.scrollIntoView({ behavior:"smooth", block:"start" });
+  }, 60);
 });
 document.getElementById("portfolioModeSeg").addEventListener("click", function(e){
   var b = e.target.closest("[data-mode]"); if (!b) return;
