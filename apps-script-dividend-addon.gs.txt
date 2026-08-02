@@ -1,0 +1,112 @@
+/**
+ * DIVIDEND YIELD ADDON — for the Apps Script project behind your /exec proxy URL
+ *
+ * WHY THIS EXISTS
+ * The app now has a "Dividend & franking" fieldset on every company — reference-only fields that
+ * never affect the Acquirer's Multiple ranking. Franking % has no Yahoo equivalent, so it's always
+ * typed in by hand. Dividend yield, though, is sitting in the same Yahoo response your proxy already
+ * calls for every other fundamental — it just isn't being asked for yet.
+ *
+ * THE FIX
+ * Your `summary_` function already fetches `quoteSummary` with `modules=price,defaultKeyStatistics`
+ * to get market cap, shares on issue and the company name. Yahoo's `summaryDetail` module — a third
+ * module on that exact same request — carries `dividendYield` as a plain fraction (0.032 for 3.2%).
+ * Adding it costs nothing extra: same request, same crumb, no new UrlFetch call.
+ *
+ * ── INSTALL ─────────────────────────────────────────────────────────────────────────────────────
+ *
+ * STEP 1 — Widen the modules list in `summary_`.
+ * Open Code.gs and find this line (the request URL inside `summary_`):
+ *
+ *     '?modules=price,defaultKeyStatistics&crumb=' +
+ *
+ * Change it to:
+ *
+ *     '?modules=price,defaultKeyStatistics,summaryDetail&crumb=' +
+ *
+ * STEP 2 — Read the field out and return it.
+ * Still inside `summary_`, find where the result object is destructured and returned:
+ *
+ *     var p = res.price || {};
+ *     var k = res.defaultKeyStatistics || {};
+ *     return {
+ *       marketCap: p.marketCap && p.marketCap.raw,
+ *       price: p.regularMarketPrice && p.regularMarketPrice.raw,
+ *       currency: p.currency,
+ *       financialCurrency: p.financialCurrency || null,
+ *       shares: k.sharesOutstanding && k.sharesOutstanding.raw,
+ *       name: p.longName || p.shortName || ''
+ *     };
+ *
+ * Add one line above it to pull out the new module, and one line inside the returned object:
+ *
+ *     var p = res.price || {};
+ *     var k = res.defaultKeyStatistics || {};
+ *     var sd = res.summaryDetail || {};
+ *     return {
+ *       marketCap: p.marketCap && p.marketCap.raw,
+ *       price: p.regularMarketPrice && p.regularMarketPrice.raw,
+ *       currency: p.currency,
+ *       financialCurrency: p.financialCurrency || null,
+ *       shares: k.sharesOutstanding && k.sharesOutstanding.raw,
+ *       name: p.longName || p.shortName || '',
+ *       dividendYield: sd.dividendYield && sd.dividendYield.raw != null ? sd.dividendYield.raw * 100 : null
+ *     };
+ *
+ * (Yahoo's raw fields all follow this `{ raw: <number>, fmt: "<string>" }` shape — that's why every
+ * other field above reads `.raw` off it. `dividendYield` is a fraction, so `*100` turns 0.032 into 3.2,
+ * matching the plain percentage the app's other fields already use.)
+ *
+ * STEP 3 — Merge it into `fundamentals_`.
+ * Find the try block in `fundamentals_` where `summary_`'s result gets merged in:
+ *
+ *     try {
+ *       var s = summary_(ticker, a);
+ *       if (s.marketCap) out.fields.mcapDirect = s.marketCap / 1e6;
+ *       if (s.shares && !out.fields.shares) out.fields.shares = s.shares / 1e6;
+ *       if (s.price) out.price = s.price;
+ *       out.currency = s.financialCurrency || s.currency || '';
+ *       out.priceCurrency = s.currency || '';
+ *       out.name = s.name || '';
+ *     } catch (err) {
+ *       out.warn = 'Financials came through, summary did not';
+ *     }
+ *
+ * Add one line inside that same try block, anywhere after `var s = summary_(ticker, a);`:
+ *
+ *       if (s.dividendYield != null) out.fields.divYield = s.dividendYield;
+ *
+ * Leave everything else in that block untouched — `mcapDirect` and `shares` divide by 1e6 because
+ * they're dollar/share-count figures in the app's millions convention; `divYield` is already a plain
+ * percentage, so it doesn't get divided by anything.
+ *
+ * STEP 4 — Prove it works BEFORE you deploy.
+ * Pick `testDividendLive` from the function dropdown at the top of the editor and press Run. Read the
+ * execution log — you want a number back, e.g. `BHP.AX dividend yield: 5.4`. If it prints `null` or
+ * `undefined`, re-check step 1 landed inside the URL string (a typo there silently drops the whole
+ * module, same as any other Yahoo request) and that `sd` in step 2 is reading from `res.summaryDetail`.
+ *
+ * STEP 5 — Deploy.
+ * Deploy → Manage deployments → the pencil icon → Version: New version → Deploy. Your /exec URL does
+ * not change, so there's nothing to update in the app.
+ *
+ * ── CHECK IT IN THE APP ─────────────────────────────────────────────────────────────────────────
+ * Open any company → More → tap "Fetch financials" (or run "Fetch all financials" from the app's own
+ * More tab). The new "Dividend yield %" field under Dividend & franking should fill in on its own.
+ * Franking % is never fetched — that field stays exactly as you typed it, always.
+ *
+ * IF A COMPANY COMES BACK EMPTY
+ * Some companies — recent listings, non-payers, thin small caps — genuinely have no dividendYield in
+ * Yahoo's response. The app treats a missing value as "leave it alone", so nothing is overwritten;
+ * you can type a figure in by hand if you have one from elsewhere.
+ */
+
+/**
+ * Run this once from the editor, before deploying, to confirm summary_ is now returning a
+ * dividend yield. Prints a plain percentage (5.4, not 0.054) if everything's wired up correctly.
+ */
+function testDividendLive(){
+  var a = auth_();
+  var s = summary_('BHP.AX', a);
+  Logger.log('BHP.AX dividend yield: ' + s.dividendYield);
+}

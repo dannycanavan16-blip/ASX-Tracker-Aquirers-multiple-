@@ -749,6 +749,9 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
     <h3>Real company logos</h3>
     <p>Avatars in the List and Favourites views can show a real company logo instead of a coloured initial. This is resolved by your proxy script, not the browser — see <code>apps-script-logo-addon.gs.txt</code> in the project files for the snippet to paste into your existing script and redeploy. Once installed, logos fill in automatically the next time you fetch prices or financials for a company. The <b>Website</b> field inside a company is a fallback the browser can use on its own for anything the proxy doesn't recognise.</p>
 
+    <h3>Dividend &amp; franking</h3>
+    <p>Every company has a Dividend &amp; franking fieldset — reference only, never part of the Acquirer's Multiple. Franking % has no Yahoo equivalent, so it's always typed in by hand. Dividend yield can fill in on its own the same way price and financials do, once your proxy is set up for it — see <code>apps-script-dividend-addon.gs.txt</code> in the project files. Without that addon installed, dividend yield is just another field you can type into directly.</p>
+
     <h3>Price chart</h3>
     <p>Open a company's editor (More, inside it) and there are two charts. <b>History</b> is the Acquirer's Multiple, built up locally one point a day, so it starts empty and takes a few weeks of visits to look like anything. <b>Price chart</b>, underneath it, is different — a year of actual daily closes pulled straight from Yahoo, so it's there the moment you load it. Tap <b>Load chart</b> to fetch it; nothing is pulled automatically, so opening a company you've never charted costs nothing until you ask for it. This needs one small addition to your proxy — see <code>apps-script-pricechart-addon.gs.txt</code> in the project files. If you tap Load chart before installing it, you'll get a message saying so rather than a blank chart.</p>
 
@@ -811,7 +814,7 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
       <li><b>Banks, insurers and REITs never rank.</b> Debt is their raw material, so enterprise value means nothing. The chip just controls whether you see them.</li>
       <li><b>Miners and energy get a cyclical flag.</b> A 4× multiple at the top of an iron ore or coal cycle is a peak-earnings trap, not a bargain. Check it against average earnings over a full cycle.</li>
       <li><b>Half-year reporting.</b> Most ASX companies report twice a year. For a trailing twelve months figure, add the latest half to the prior full year and subtract the matching half.</li>
-      <li><b>Franking credits</b> sit outside this calculation entirely.</li>
+      <li><b>Franking credits</b> sit outside this calculation entirely — record them per company under Dividend &amp; franking, but they never affect the ranking.</li>
     </ul>
 
     <h3>Units</h3>
@@ -996,6 +999,7 @@ function blank(){
            price:"", shares:"", mcapDirect:"",
            stDebt:"", ltDebt:"", pref:"", minority:"", cash:"",
            ebit:"", oneoffs:"", revenue:"", cogs:"", sga:"", da:"",
+           divYield:"", franking:"",
            ccy:"", priceCcy:"", updated:0, finUpdated:0, notes:"" };
 }
 
@@ -1767,6 +1771,9 @@ async function pullOne(c){
   FIN_KEYS.forEach(function(k){
     if (f[k] != null && isFinite(f[k])){ c[k] = String(Math.round(f[k]*100)/100); n++; }
   });
+  /* Not a FIN_KEYS entry: those are dollar figures in millions, this is already a plain
+     percentage — dividing it by nothing keeps it as-is, just rounded. */
+  if (f.divYield != null && isFinite(f.divYield)) c.divYield = String(Math.round(f.divYield*100)/100);
   /* Uppercased on the way in: ccyClash compares currency codes, and a lower-case "usd" from any
      source would read as a different currency to "USD" and quietly skip the conversion. */
   if (res.currency) c.ccy = String(res.currency).trim().toUpperCase();
@@ -3440,6 +3447,11 @@ function editorHTML(c){
     f(c.id,"cash","Cash &amp; equivalents",c.cash) +
   '</div><p class="hint">Include lease liabilities in debt — an acquirer inherits them.</p></div>' +
 
+  '<div class="fieldset"><div class="fs-title"><span>Dividend &amp; franking</span></div><div class="grid">' +
+    f(c.id,"divYield","Dividend yield %",c.divYield,"optional") +
+    f(c.id,"franking","Franking %",c.franking,"0-100") +
+  '</div><p class="hint">Reference only — never factored into the Acquirer\'s Multiple ranking. Yield pulls in with Refresh prices/Fetch financials if your proxy supports it; franking has no Yahoo equivalent, so it\'s always typed in by hand.</p></div>' +
+
   '<div class="fieldset"><div class="fs-title"><span>Operating earnings · $m</span></div>' +
     '<div class="seg">' +
       '<button data-id="' + c.id + '" data-mode="topdown" aria-pressed="' + td + '">Top-down · EBIT</button>' +
@@ -4438,7 +4450,8 @@ document.getElementById("btnStarter").addEventListener("click", function(){
 
 /* ---- CSV ---- */
 var COLS = ["tkr","co","sector","mode","fav","price","shares","mcapDirect","stDebt","ltDebt",
-            "pref","minority","cash","ebit","oneoffs","revenue","cogs","sga","da","ccy","priceCcy"];
+            "pref","minority","cash","ebit","oneoffs","revenue","cogs","sga","da","ccy","priceCcy",
+            "divYield","franking"];
 document.getElementById("btnExport").addEventListener("click", function(){
   if (!data.length){ toast("Nothing to export"); return; }
   var lines = [COLS.concat(["enterprise_value_m","operating_earnings_m","acquirers_multiple"]).join(",")];
