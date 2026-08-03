@@ -3235,6 +3235,7 @@ function renderPortfolio(){
      realised result is the whole story, so it becomes the headline instead. */
   sum.innerHTML = held.length
     ? '<div class="portfolio-total tnum">' + fmtD(totalValue) + '</div>' +
+      '<div class="portfolio-sub">' + fmtD(totalCost) + ' cost basis</div>' +
       '<div class="portfolio-sub ' + plCls + '">' + (totalPL >= 0 ? "+" : "") + fmtD(totalPL) +
         ' (' + fmtPct(totalPLPct) + ') unrealised</div>' +
       (totalRealised !== 0 ? '<div class="portfolio-sub ' + reCls + '">' + (totalRealised >= 0 ? "+" : "") +
