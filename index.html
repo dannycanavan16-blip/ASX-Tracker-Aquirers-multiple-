@@ -508,7 +508,7 @@ details.notes code{font-family:var(--mono);font-size:.8rem;color:var(--ink);word
 .sectorstat-head .dot{width:9px;height:9px;border-radius:50%;flex:0 0 auto}
 .sectorstat-name{font-family:var(--serif);font-weight:700;font-size:.95rem;flex:1;color:var(--ink)}
 .sectorstat-count{font-size:.72rem;color:var(--ink-soft);font-variant-numeric:tabular-nums}
-.sectorstat-metrics{display:flex;justify-content:space-between;gap:.6rem;margin-top:.55rem;
+.sectorstat-metrics{display:flex;flex-wrap:wrap;justify-content:space-between;gap:.6rem;margin-top:.55rem;
   font-size:.85rem;font-variant-numeric:tabular-nums}
 .sectorstat-metrics>div{display:flex;flex-direction:column;gap:.15rem}
 .sectorstat-metrics b{color:var(--ink);font-weight:700}
@@ -2121,6 +2121,10 @@ document.addEventListener("click", function(e){
 });
 
 function setTab(t){
+  /* The full detail overlay is tab-independent by design (it can stay open while paint() repaints
+     whatever's underneath), but switching tabs via the nav bar should still close it rather than
+     leave it stuck on top of wherever you just navigated to. */
+  closeDetail();
   cfg.tab = t; saveCfg();
   document.getElementById("viewMap").style.display = t === "map" ? "" : "none";
   document.getElementById("viewList").style.display = t === "list" ? "" : "none";
@@ -3090,8 +3094,11 @@ function portfolioExpandHTML(c){
     : '<div><span class="cap">Shares sold</span><b>' + p.sold.toLocaleString() + '</b></div>' +
       '<div><span class="cap">Proceeds</span><b>' + fmtD(p.proceeds) + '</b></div>' +
       '<div><span class="cap">Realised</span><b>' + (p.realised >= 0 ? "+" : "") + fmtD(p.realised) + '</b></div>';
+  if (String(c.divYield).trim() !== "")
+    body += '<div><span class="cap">Dividend yield</span><b>' + fmtPct(num(c.divYield)) + '</b></div>';
   return '<div class="summary">' +
     '<div class="sectorstat-metrics">' + body + '</div>' +
+    researchHTML(c) +
     '<button class="primary mini" data-act="more" data-id="' + c.id + '" style="margin-top:.6rem">More</button>' +
   '</div>';
 }
